@@ -1,11 +1,24 @@
 package lnbits
 
 import (
-	"fmt"
-	"time"
+    "crypto/rand"
+    "encoding/hex"
+    "fmt"
+    "time"
 
-	"github.com/imroc/req"
+    "github.com/imroc/req"
 )
+
+// generateRandomPassword erzeugt ein zufälliges Passwort für neue LNbits-User
+func generateRandomPassword() string {
+    b := make([]byte, 16)
+    _, err := rand.Read(b)
+    if err != nil {
+        // Fallback falls rand fehlschlägt
+        return fmt.Sprintf("pw%d", time.Now().UnixNano())
+    }
+    return hex.EncodeToString(b)
+}
 
 // NewClient returns a new lnbits api client. Pass your API key and url here.
 func NewClient(key, url string) *Client {
