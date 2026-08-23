@@ -25,63 +25,68 @@ func NewClient(key, url string) *Client {
 
 // GetUser returns user information
 func (c *Client) GetUser(userId string) (user User, err error) {
-	resp, err := req.Post(c.url+"/usermanager/api/v1/users/"+userId, c.header, nil)
-	if err != nil {
-		return
-	}
+    resp, err := req.Get(c.url+"/users/api/v1/user/"+userId, c.header, nil)
+    if err != nil {
+        return
+    }
 
-	if resp.Response().StatusCode >= 300 {
-		var reqErr Error
-		resp.ToJSON(&reqErr)
-		err = reqErr
-		return
-	}
+    if resp.Response().StatusCode >= 300 {
+        var reqErr Error
+        resp.ToJSON(&reqErr)
+        err = reqErr
+        return
+    }
 
-	err = resp.ToJSON(&user)
-	return
+    err = resp.ToJSON(&user)
+    return
 }
 
 // CreateUserWithInitialWallet creates new user with initial wallet
 func (c *Client) CreateUserWithInitialWallet(userName, walletName, adminId string, email string) (wal User, err error) {
-	resp, err := req.Post(c.url+"/usermanager/api/v1/users", c.header, req.BodyJSON(struct {
-		WalletName string `json:"wallet_name"`
-		AdminId    string `json:"admin_id"`
-		UserName   string `json:"user_name"`
-		Email      string `json:"email"`
-	}{walletName, adminId, userName, email}))
-	if err != nil {
-		return
-	}
+    body := map[string]interface{}{
+        "username":    userName,
+        "password":    generateRandomPassword(),
+        "wallet_name": walletName,
+    }
+    if email != "" {
+        body["email"] = email
+    }
 
-	if resp.Response().StatusCode >= 300 {
-		var reqErr Error
-		resp.ToJSON(&reqErr)
-		err = reqErr
-		return
-	}
-	err = resp.ToJSON(&wal)
-	return
+    resp, err := req.Post(c.url+"/users/api/v1/user", c.header, req.BodyJSON(body))
+    if err != nil {
+        return
+    }
+
+    if resp.Response().StatusCode >= 300 {
+        var reqErr Error
+        resp.ToJSON(&reqErr)
+        err = reqErr
+        return
+    }
+
+    err = resp.ToJSON(&wal)
+    return
 }
 
 // CreateWallet creates a new wallet.
 func (c *Client) CreateWallet(userId, walletName, adminId string) (wal Wallet, err error) {
-	resp, err := req.Post(c.url+"/usermanager/api/v1/wallets", c.header, req.BodyJSON(struct {
-		UserId     string `json:"user_id"`
-		WalletName string `json:"wallet_name"`
-		AdminId    string `json:"admin_id"`
-	}{userId, walletName, adminId}))
-	if err != nil {
-		return
-	}
+    body := map[string]string{
+        "name": walletName,
+    }
 
-	if resp.Response().StatusCode >= 300 {
-		var reqErr Error
-		resp.ToJSON(&reqErr)
-		err = reqErr
-		return
-	}
-	err = resp.ToJSON(&wal)
-	return
+    resp, err := req.Post(c.url+"/api/v1/wallet", c.header, req.BodyJSON(body))
+    if err != nil {
+        return
+    }
+
+    if resp.Response().StatusCode >= 300 {
+        var reqErr Error
+        resp.ToJSON(&reqErr)
+        err = reqErr
+        return
+    }
+    err = resp.ToJSON(&wal)
+    return
 }
 
 // Invoice creates an invoice associated with this wallet.
@@ -182,20 +187,18 @@ func (c Client) Payment(w Wallet, payment_hash string) (payment LNbitsPayment, e
 
 // Wallets returns all wallets belonging to an user
 func (c Client) Wallets(w User) (wtx []Wallet, err error) {
-	resp, err := req.Get(c.url+"/usermanager/api/v1/wallets/"+w.ID, c.header, nil)
-	if err != nil {
-		return
-	}
+    // Neue Variante: User holen und dessen Wallets auslesen
+    user, err := c.GetUser(w.ID)
+    if err != nil {
+        return
+    }
 
-	if resp.Response().StatusCode >= 300 {
-		var reqErr Error
-		resp.ToJSON(&reqErr)
-		err = reqErr
-		return
-	}
-
-	err = resp.ToJSON(&wtx)
-	return
+    // Annahme: Die neue User-Response enthält ein "wallets"-Array
+    // Das muss in types.go angepasst werden
+    if user.Wallets != nil {
+        wtx = user.Wallets
+    }
+    return
 }
 
 // Pay pays a given invoice with funds from the wallet.

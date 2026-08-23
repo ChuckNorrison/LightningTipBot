@@ -27,6 +27,7 @@ type User struct {
 	Initialized  bool         `json:"initialized"`
 	Telegram     *tb.User     `gorm:"embedded;embeddedPrefix:telegram_"`
 	Wallet       *Wallet      `gorm:"embedded;embeddedPrefix:wallet_"`
+	Wallets      []Wallet     `json:"wallets,omitempty"`
 	StateKey     UserStateKey `json:"stateKey"`
 	StateData    string       `json:"stateData"`
 	CreatedAt    time.Time    `json:"created"`
