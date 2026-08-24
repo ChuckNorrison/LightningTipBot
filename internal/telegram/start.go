@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+	"strings"
 
 	"github.com/LightningTipBot/LightningTipBot/internal/telegram/intercept"
 
@@ -20,6 +21,57 @@ import (
 	tb "gopkg.in/lightningtipbot/telebot.v3"
 	"gorm.io/gorm"
 )
+
+func (bot TipBot) repairWalletLink(user *lnbits.User) error {
+    if user == nil {
+        log.Errorln("[repairWalletLink] user is nil")
+        return nil
+    }
+    if user.Name == "" {
+        log.Errorln("[repairWalletLink] user.Name empty, skip")
+        return nil
+    }
+
+    log.Errorf("[repairWalletLink] START name=%s id=%s wallet_id=%v",
+        user.Name, user.ID, user.Wallet != nil)
+
+    foundUser, foundWallet, err := bot.Client.FindUserAndWalletByTelegramID(user.Name)
+    if err != nil {
+        log.Errorln("[repairWalletLink] search failed:", err.Error())
+        return err
+    }
+    if foundWallet == nil {
+        log.Errorln("[repairWalletLink] no matching wallet found")
+        return nil
+    }
+
+    log.Errorf("[repairWalletLink] found user=%s wallet=%s name=%q balance=%d local_wallet=%v",
+        foundUser.ID, foundWallet.ID, foundWallet.Name, foundWallet.BalanceSats(),
+        user.Wallet != nil && user.Wallet.ID == foundWallet.ID)
+
+    if foundWallet.Inkey == "" {
+        log.Errorln("[repairWalletLink] found wallet has no inkey – abort")
+        return fmt.Errorf("wallet without inkey")
+    }
+    log.Errorf("[repairWalletLink] linking wallet=%s inkey_len=%d sats=%d",
+        foundWallet.ID, len(foundWallet.Inkey), foundWallet.BalanceSats())
+
+    user.ID = foundUser.ID
+    user.Wallet = foundWallet
+    if user.AnonID == "" {
+        user.AnonID = fmt.Sprint(str.Int32Hash(user.ID))
+    }
+    user.AnonIDSha256 = str.AnonIdSha256(user)
+    user.UUID = str.UUIDSha256(user)
+
+    err = UpdateUserRecord(user, bot)
+    if err != nil {
+        log.Errorln("[repairWalletLink] UpdateUserRecord failed:", err.Error())
+        return err
+    }
+    log.Errorln("[repairWalletLink] DB updated OK")
+    return nil
+}
 
 func (bot TipBot) startHandler(ctx intercept.Context) (intercept.Context, error) {
 	if !ctx.Message().Private() {
@@ -49,74 +101,103 @@ func (bot TipBot) startHandler(ctx intercept.Context) (intercept.Context, error)
 	return ctx, nil
 }
 
-func (bot TipBot) initWallet(tguser *tb.User) (*lnbits.User, error) {
-	user, err := GetUser(tguser, bot)
-	if stderrors.Is(err, gorm.ErrRecordNotFound) {
-		user = &lnbits.User{Telegram: tguser}
-		err = bot.createWallet(user)
-		if err != nil {
-			return user, err
-		}
-		// set user initialized
-		user, err := GetUser(tguser, bot)
-		user.Initialized = true
-		err = UpdateUserRecord(user, bot)
-		if err != nil {
-			log.Errorln(fmt.Sprintf("[initWallet] error updating user: %s", err.Error()))
-			return user, err
-		}
-	} else if !user.Initialized {
-		// update all tip tooltips (with the "initialize me" message) that this user might have received before
-		tipTooltipInitializedHandler(user.Telegram, bot)
-		user.Initialized = true
-		err = UpdateUserRecord(user, bot)
-		if err != nil {
-			log.Errorln(fmt.Sprintf("[initWallet] error updating user: %s", err.Error()))
-			return user, err
-		}
-	} else if user.Initialized {
-		// wallet is already initialized
-		return user, nil
-	} else {
-		err = fmt.Errorf("could not initialize wallet")
-		return user, err
-	}
-	return user, nil
+func (bot TipBot) createWallet(user *lnbits.User) error {
+    UserStr := GetUserStr(user.Telegram)
+    username := strconv.FormatInt(user.Telegram.ID, 10)
+    walletName := fmt.Sprintf("%d (%s)", user.Telegram.ID, UserStr)
+
+    u, err := bot.Client.CreateUserWithInitialWallet(
+        username,
+        walletName,
+        internal.Configuration.Lnbits.AdminId,
+        "",
+    )
+
+    if err != nil && strings.Contains(strings.ToLower(err.Error()), "already exists") {
+        log.Warnf("[createWallet] Username %s already exists, reusing...", username)
+        foundUser, foundWallet, ferr := bot.Client.FindUserAndWalletByTelegramID(username)
+        if ferr != nil {
+            log.Errorln("[createWallet] Reuse failed:", ferr.Error())
+            return ferr
+        }
+        user.ID = foundUser.ID
+        user.Name = username
+        user.Wallet = foundWallet
+    } else if err != nil {
+        log.Errorln("[createWallet] Create wallet error:", err.Error())
+        return err
+    } else {
+        // neu angelegt
+        user.ID = u.ID
+        user.Name = username
+
+        var wallets []lnbits.Wallet
+        if len(u.Wallets) > 0 {
+            wallets = u.Wallets
+        } else {
+            wallets, err = bot.Client.Wallets(*user)
+            if err != nil {
+                log.Errorln("[createWallet] Get wallet error:", err.Error())
+                return err
+            }
+        }
+        if len(wallets) == 0 {
+            return fmt.Errorf("[createWallet] no wallet for user %s", user.ID)
+        }
+        user.Wallet = lnbits.SelectBestWallet(wallets, username)
+    }
+
+    if user.Wallet == nil || user.Wallet.ID == "" {
+        return fmt.Errorf("[createWallet] wallet empty for user %s", user.ID)
+    }
+
+    user.AnonID = fmt.Sprint(str.Int32Hash(user.ID))
+    user.AnonIDSha256 = str.AnonIdSha256(user)
+    user.UUID = str.UUIDSha256(user)
+    user.Initialized = false
+    if user.CreatedAt.IsZero() {
+        user.CreatedAt = time.Now()
+    }
+
+    return UpdateUserRecord(user, bot)
 }
 
-func (bot TipBot) createWallet(user *lnbits.User) error {
-	UserStr := GetUserStr(user.Telegram)
-	u, err := bot.Client.CreateUserWithInitialWallet(strconv.FormatInt(user.Telegram.ID, 10),
-		fmt.Sprintf("%d (%s)", user.Telegram.ID, UserStr),
-		internal.Configuration.Lnbits.AdminId,
-		UserStr)
-	if err != nil {
-		errormsg := fmt.Sprintf("[createWallet] Create wallet error: %s", err.Error())
-		log.Errorln(errormsg)
-		return err
-	}
-	user.Wallet = &lnbits.Wallet{}
-	user.ID = u.ID
-	user.Name = u.Name
-	wallet, err := bot.Client.Wallets(*user)
-	if err != nil {
-		errormsg := fmt.Sprintf("[createWallet] Get wallet error: %s", err.Error())
-		log.Errorln(errormsg)
-		return err
-	}
-	user.Wallet = &wallet[0]
+func (bot TipBot) initWallet(tguser *tb.User) (*lnbits.User, error) {
+    user, err := GetUser(tguser, bot)
+    if stderrors.Is(err, gorm.ErrRecordNotFound) {
+        user = &lnbits.User{Telegram: tguser}
+        err = bot.createWallet(user)
+        if err != nil {
+            return user, err
+        }
+        user, err = GetUser(tguser, bot)
+        if err != nil {
+            return user, err
+        }
+        user.Initialized = true
+        if err = UpdateUserRecord(user, bot); err != nil {
+            return user, err
+        }
+    } else if user != nil && !user.Initialized {
+        tipTooltipInitializedHandler(user.Telegram, bot)
+        user.Initialized = true
+        if err = UpdateUserRecord(user, bot); err != nil {
+            return user, err
+        }
+    } else if user != nil && user.Initialized {
+        // bereits initialisiert
+    } else {
+        return user, fmt.Errorf("could not initialize wallet")
+    }
 
-	user.AnonID = fmt.Sprint(str.Int32Hash(user.ID))
-	user.AnonIDSha256 = str.AnonIdSha256(user)
-	user.UUID = str.UUIDSha256(user)
+    // Abwärtskompatibel: falsches Wallet automatisch korrigieren (nicht blockierend)
 
-	user.Initialized = false
-	user.CreatedAt = time.Now()
-	err = UpdateUserRecord(user, bot)
-	if err != nil {
-		errormsg := fmt.Sprintf("[createWallet] Update user record error: %s", err.Error())
-		log.Errorln(errormsg)
-		return err
-	}
-	return nil
+    if user != nil {
+        log.Errorln("[initWallet] calling repairWalletLink")
+        if rerr := bot.repairWalletLink(user); rerr != nil {
+            log.Errorln("[initWallet] repairWalletLink:", rerr.Error())
+        }
+    }
+
+    return user, nil
 }

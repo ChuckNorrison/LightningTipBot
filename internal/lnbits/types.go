@@ -10,20 +10,13 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 
-	"github.com/imroc/req"
 	tb "gopkg.in/lightningtipbot/telebot.v3"
 )
-
-type Client struct {
-	header     req.Header
-	url        string
-	AdminKey   string
-	InvoiceKey string
-}
 
 type User struct {
 	ID           string       `json:"id"`
 	Name         string       `json:"name" gorm:"primaryKey"`
+	Username     string       `json:"username,omitempty"`
 	Initialized  bool         `json:"initialized"`
 	Telegram     *tb.User     `gorm:"embedded;embeddedPrefix:telegram_"`
 	Wallet       *Wallet      `gorm:"embedded;embeddedPrefix:wallet_"`
@@ -116,8 +109,20 @@ type Wallet struct {
 	Adminkey string `json:"adminkey"`
 	Inkey    string `json:"inkey"`
 	Balance  int64  `json:"balance"`
+	BalanceMsat int64  `json:"balance_msat,omitempty"`
 	Name     string `json:"name"`
 	User     string `json:"user"`
+}
+
+func (w Wallet) BalanceSats() int64 {
+    if w.BalanceMsat > 0 {
+        return w.BalanceMsat / 1000
+    }
+    if w.Balance > 0 {
+        // Viele Endpoints setzen nur "balance", ebenfalls in msat
+        return w.Balance / 1000
+    }
+    return 0
 }
 
 type Payment struct {
@@ -147,6 +152,14 @@ type Payments []Payment
 type Invoice struct {
 	PaymentHash    string `json:"payment_hash"`
 	PaymentRequest string `json:"payment_request"`
+	Bolt11         string `json:"bolt11"`
+}
+
+func (inv Invoice) Bolt11String() string {
+    if inv.PaymentRequest != "" {
+        return inv.PaymentRequest
+    }
+    return inv.Bolt11
 }
 
 // from fiatjaf/lnurl-go
