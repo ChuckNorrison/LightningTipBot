@@ -29,22 +29,22 @@ After the configuration (see below), start it using the command
 
 ### Configuration
 
-You need to edit `config.yaml` before you can start the bot.
+You need to create the `config.yaml` before you can start the bot.
+
+Start with copy the `config.yaml.example` as `config.yaml`
+
+#### Set up LNbits first
+
+- After UserManager extension was integrated in LNBits, there is no need for any extensions to run the LightningTipBot anymore
+- You need to have access to the super user of your LNBits instance. Login and check Users on the left. More informations regarding super user login can be found [here](https://docs.lnbits.org/guide/admin_ui.html).
+- Now login as super user into your LNBits webinterface. Here you should see a Users menu entry on the left, where your telegram users can be managed if needed, normally there is nothing to do.
+- Edit your config.yaml and set `admin_username` and `admin_password` with your super user credentials
 
 #### Create a Telegram bot
 
-First, create a new Telegram bot by starting a conversation with the [@BotFather](https://core.telegram.org/bots#6-botfather). After you have created your bot, you will get an **Api Token** which you need to add to `telegram_api_key` in config.yaml accordingly.
+Create a new Telegram bot by starting a conversation with the [@BotFather](https://core.telegram.org/bots#6-botfather). After you have created your bot, you will get an **Api Token** which you need to add to `telegram_api_key` in config.yaml accordingly.
 
-#### Set up LNbits
-
-After UserManager extension was integrated in LNBits and abandoned, you need to have access to the super user of your LNBits instance. Login and check Users on the left. Find further informations regarding the super user [here](https://docs.lnbits.org/guide/admin_ui.html)
-
-1. Login as super user into LNBits
-2. Get the **Admin Key** in the `Node URL, API keys and API docs` on the right of your user.
-3. In your config.yaml you can add this as admin_key
-4. Set admin_username and admin_password with your super user
-
-#### More configuration
+#### More configurations
 
 - `db_path`: User database file path.
 - `transactions_path`: Transaction database file path.

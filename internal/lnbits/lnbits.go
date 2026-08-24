@@ -182,14 +182,12 @@ type Client struct {
     mu             sync.Mutex
 }
 
-func NewClient(key, url string) *Client {
+func NewClient(url string) *Client {
     return &Client{
         url:      url,
-        adminKey: key,
         header: req.Header{
             "Content-Type": "application/json",
             "Accept":       "application/json",
-            "X-Api-Key":    key,
         },
     }
 }
@@ -267,7 +265,7 @@ func (c *Client) GetUser(userId string) (user User, err error) {
     return
 }
 
-func (c *Client) CreateUserWithInitialWallet(userName, walletName, adminId string, email string) (wal User, err error) {
+func (c *Client) CreateUserWithInitialWallet(userName, walletName, email string) (wal User, err error) {
     if err = c.ensureToken(); err != nil {
         return
     }

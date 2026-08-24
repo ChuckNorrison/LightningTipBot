@@ -48,7 +48,7 @@ func NewBot() TipBot {
 	dbs := AutoMigration()
 	limiter.Start()
 
-    client := lnbits.NewClient(internal.Configuration.Lnbits.AdminKey, internal.Configuration.Lnbits.Url)
+    client := lnbits.NewClient(internal.Configuration.Lnbits.Url)
     client.SetAdminCredentials(internal.Configuration.Lnbits.AdminUsername, internal.Configuration.Lnbits.AdminPassword)
 
 	return TipBot{

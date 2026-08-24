@@ -15,10 +15,8 @@ telegram:
   api_key: "1234"
 lnbits:
   url: "http://127.0.0.1:5000"
-  admin_key: "1234"
-  admin_id: "1234"
   admin_username: "superusername"
-  admin_password: "superusernamepassword"
+  admin_password: "superuserpassword"
   webhook_server: "http://0.0.0.0:5588"
   lnbits_public_url: "link.mylnurl.com"
 database:

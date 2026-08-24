@@ -12,8 +12,6 @@ import (
 
 	"github.com/LightningTipBot/LightningTipBot/internal/errors"
 
-	"github.com/LightningTipBot/LightningTipBot/internal"
-
 	log "github.com/sirupsen/logrus"
 
 	"github.com/LightningTipBot/LightningTipBot/internal/lnbits"
@@ -109,7 +107,6 @@ func (bot TipBot) createWallet(user *lnbits.User) error {
     u, err := bot.Client.CreateUserWithInitialWallet(
         username,
         walletName,
-        internal.Configuration.Lnbits.AdminId,
         "",
     )
 

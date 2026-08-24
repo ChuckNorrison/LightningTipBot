@@ -147,7 +147,7 @@ func (s Service) InvoiceStream(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
 		return
 	}
-	client := sse.NewClient(fmt.Sprintf("%s/api/v1/payments/sse", internal.Configuration.Lnbits.Url))
+	client := sse.NewClient(internal.Configuration.Lnbits.Url)
 	client.Connection.Transport = &http.Transport{DisableCompression: true}
 	client.Headers = map[string]string{"X-Api-Key": user.Wallet.Inkey}
 	c := make(chan *sse.Event)
