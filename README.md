@@ -37,17 +37,12 @@ First, create a new Telegram bot by starting a conversation with the [@BotFather
 
 #### Set up LNbits
 
-After UserManager extension was integrated in LNBits and abandoned, you need to have access to the super user of your LNBits instance. Login and check Users on the left. 
+After UserManager extension was integrated in LNBits and abandoned, you need to have access to the super user of your LNBits instance. Login and check Users on the left. Find further informations regarding the super user [here](https://docs.lnbits.org/guide/admin_ui.html)
 
 1. Login as super user into LNBits
-2. Get the **Admin key** in the API Info tab of your user (`lnbits_admin_key`).
-3. In your config.yaml you can add this as admin_key, admin_username and admin_password. 
-
-#### Getting LNbits keys
-
-<p align="center">
-  	<img alt="How to set up a lnbits wallet and the User Manager extension." src="resources/lnbits_setup.png" >
-</p>
+2. Get the **Admin Key** in the `Node URL, API keys and API docs` on the right of your user.
+3. In your config.yaml you can add this as admin_key
+4. Set admin_username and admin_password with your super user
 
 #### More configuration
 
