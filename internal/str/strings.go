@@ -43,15 +43,21 @@ func Int64Hash(s string) uint64 {
 }
 
 func AnonIdSha256(u *lnbits.User) string {
-	h := sha256.Sum256([]byte(u.Wallet.ID))
-	hash := fmt.Sprintf("%x", h)
-	anon_id := fmt.Sprintf("0x%s", hash[:16]) // starts with 0x because that can't be a valid telegram username
-	return anon_id
+    if u == nil || u.Wallet == nil || u.Wallet.ID == "" {
+        return ""
+    }
+    h := sha256.Sum256([]byte(u.Wallet.ID))
+    hash := fmt.Sprintf("%x", h)
+    anon_id := fmt.Sprintf("0x%s", hash[:16])
+    return anon_id
 }
 
 func UUIDSha256(u *lnbits.User) string {
-	h := sha256.Sum256([]byte(u.Wallet.ID))
-	hash := fmt.Sprintf("%x", h)
-	anon_id := fmt.Sprintf("1x%s", hash[len(hash)-16:]) // starts with 1x because that can't be a valid telegram username
-	return anon_id
+    if u == nil || u.Wallet == nil || u.Wallet.ID == "" {
+        return ""
+    }
+    h := sha256.Sum256([]byte(u.Wallet.ID))
+    hash := fmt.Sprintf("%x", h)
+    anon_id := fmt.Sprintf("1x%s", hash[len(hash)-16:])
+    return anon_id
 }
