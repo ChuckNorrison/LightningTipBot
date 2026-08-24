@@ -81,13 +81,19 @@ func (bot *TipBot) GetUserBalance(user *lnbits.User) (amount int64, err error) {
 		log.Errorln(errmsg)
 		return
 	}
-	user.Wallet.Balance = wallet.Balance
+
+	amount = wallet.BalanceSats()
+	user.Wallet.Balance = amount
+
 	err = UpdateUserRecord(user, *bot)
 	if err != nil {
 		return
 	}
-	// msat to sat
-	amount = int64(wallet.Balance) / 1000
+
+        log.Errorf("[GetUserBalance] raw balance=%d balance_msat=%d id=%s inkey_len=%d",
+            wallet.Balance, wallet.BalanceMsat, wallet.ID, len(user.Wallet.Inkey))
+
+	amount = wallet.BalanceSats()
 	log.Debugf("[GetUserBalance] %s's balance: %d sat\n", GetUserStr(user.Telegram), amount)
 
 	// update user balance in cache

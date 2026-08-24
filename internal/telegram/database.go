@@ -10,6 +10,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"time"
+	"strings"
 
 	"github.com/LightningTipBot/LightningTipBot/internal/str"
 
@@ -88,6 +89,8 @@ func ColumnMigrationTasks(db *gorm.DB) error {
 		err = database.MigrateUUIDSha265Hash(db)
 	}
 
+	db.Where("name = '' OR name IS NULL").Delete(&lnbits.User{})
+
 	// todo -- add more database field migrations here in the future
 	return err
 }
@@ -122,6 +125,13 @@ func AutoMigration() *Databases {
 	err = groupsDb.AutoMigrate(&Group{})
 	if err != nil {
 		panic(err)
+	}
+
+	result := orm.Where("name = '' OR name IS NULL").Delete(&lnbits.User{})
+	if result.Error != nil {
+		log.Warnln("[AutoMigration] cleanup empty names failed:", result.Error)
+	} else if result.RowsAffected > 0 {
+		log.Infof("[AutoMigration] removed %d broken user row(s) with empty name", result.RowsAffected)
 	}
 
 	return &Databases{
@@ -248,38 +258,100 @@ func debugStack() {
 		}
 	}()
 }
+
 func UpdateUserRecord(user *lnbits.User, bot TipBot) error {
-	user.UpdatedAt = time.Now()
+    user.UpdatedAt = time.Now()
 
-	// There is a weird bug that makes the AnonID vanish. This is a workaround.
-	// TODO -- Remove this after empty anon id bug is identified
-	if user.AnonIDSha256 == "" {
-		debugStack()
-		user.AnonIDSha256 = str.AnonIdSha256(user)
-		log.Errorf("[UpdateUserRecord] AnonIDSha256 empty! Setting to: %s", user.AnonIDSha256)
-	}
-	// TODO -- Remove this after empty anon id bug is identified
-	if user.AnonID == "" {
-		debugStack()
-		user.AnonID = fmt.Sprint(str.Int32Hash(user.ID))
-		log.Errorf("[UpdateUserRecord] AnonID empty! Setting to: %s", user.AnonID)
-	}
-	// TODO -- Remove this after empty anon id bug is identified
-	if user.UUID == "" {
-		debugStack()
-		user.UUID = str.UUIDSha256(user)
-		log.Errorf("[UpdateUserRecord] UUID empty! Setting to: %s", user.UUID)
-	}
+    // Primary Key = Telegram-ID (abwärtskompatibel)
+    if user.Name == "" && user.Telegram != nil {
+        user.Name = strconv.FormatInt(user.Telegram.ID, 10)
+    }
+    if user.Name == "" {
+        errmsg := fmt.Sprintf("[UpdateUserRecord] Refusing to save user with empty Name")
+        log.Errorln(errmsg)
+        debugStack()
+        return fmt.Errorf(errmsg)
+    }
 
-	tx := bot.DB.Users.Save(user)
-	if tx.Error != nil {
-		errmsg := fmt.Sprintf("[UpdateUserRecord] Error: Couldn't update %s's info in Database.", GetUserStr(user.Telegram))
-		log.Errorln(errmsg)
-		return tx.Error
-	}
-	log.Tracef("[UpdateUserRecord] Records of user %s updated.", GetUserStr(user.Telegram))
-	if bot.Cache.GoCacheStore != nil {
-		updateCachedUser(user, bot)
-	}
-	return nil
+    // Anon-IDs nur setzen, wenn Wallet vorhanden
+    if user.AnonIDSha256 == "" && user.Wallet != nil && user.Wallet.ID != "" {
+        user.AnonIDSha256 = str.AnonIdSha256(user)
+    }
+    if user.AnonID == "" && user.ID != "" {
+        user.AnonID = fmt.Sprint(str.Int32Hash(user.ID))
+    }
+    if user.UUID == "" && user.Wallet != nil && user.Wallet.ID != "" {
+        user.UUID = str.UUIDSha256(user)
+    }
+
+    // 1) Normal speichern
+    tx := bot.DB.Users.Save(user)
+    if tx.Error == nil {
+        log.Tracef("[UpdateUserRecord] Records of user %s updated.", GetUserStr(user.Telegram))
+        if bot.Cache.GoCacheStore != nil {
+            updateCachedUser(user, bot)
+        }
+        return nil
+    }
+
+    errStr := strings.ToLower(tx.Error.Error())
+    if !strings.Contains(errStr, "unique") {
+        errmsg := fmt.Sprintf("[UpdateUserRecord] Error: Couldn't update %s's info in Database.", GetUserStr(user.Telegram))
+        log.Errorln(errmsg)
+        return tx.Error
+    }
+
+    // 2) UNIQUE-Konflikt → Geisterzeilen weg + bestehenden Datensatz updaten
+    log.Warnf("[UpdateUserRecord] UNIQUE conflict for name=%s – trying recovery", user.Name)
+    bot.DB.Users.Where("name = '' OR name IS NULL").Delete(&lnbits.User{})
+
+    var existing lnbits.User
+    q := bot.DB.Users.Where("name = ?", user.Name).First(&existing)
+    if q.Error != nil && user.Telegram != nil {
+        q = bot.DB.Users.Where("telegram_id = ?", user.Telegram.ID).First(&existing)
+    }
+
+    if q.Error != nil {
+        // nach Cleanup erneut inserten
+        tx = bot.DB.Users.Save(user)
+        if tx.Error != nil {
+            log.Errorln("[UpdateUserRecord] Recovery insert failed:", tx.Error.Error())
+            return tx.Error
+        }
+    } else {
+        // bestehenden Datensatz mit frischen LNbits-Daten mergen
+        existing.ID = user.ID
+        if user.Wallet != nil {
+            existing.Wallet = user.Wallet
+        }
+        if user.AnonID != "" {
+            existing.AnonID = user.AnonID
+        }
+        if user.AnonIDSha256 != "" {
+            existing.AnonIDSha256 = user.AnonIDSha256
+        }
+        if user.UUID != "" {
+            existing.UUID = user.UUID
+        }
+        existing.Initialized = user.Initialized
+        existing.UpdatedAt = time.Now()
+        if existing.Name == "" {
+            existing.Name = user.Name
+        }
+        if user.Telegram != nil {
+            existing.Telegram = user.Telegram
+        }
+        tx = bot.DB.Users.Save(&existing)
+        if tx.Error != nil {
+            log.Errorln("[UpdateUserRecord] Recovery update failed:", tx.Error.Error())
+            return tx.Error
+        }
+        *user = existing
+    }
+
+    if bot.Cache.GoCacheStore != nil {
+        updateCachedUser(user, bot)
+    }
+    log.Tracef("[UpdateUserRecord] Records of user %s updated (recovery).", GetUserStr(user.Telegram))
+    return nil
 }

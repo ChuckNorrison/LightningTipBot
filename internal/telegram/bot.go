@@ -47,9 +47,13 @@ func NewBot() TipBot {
 	// create sqlite databases
 	dbs := AutoMigration()
 	limiter.Start()
+
+    client := lnbits.NewClient(internal.Configuration.Lnbits.AdminKey, internal.Configuration.Lnbits.Url)
+    client.SetAdminCredentials(internal.Configuration.Lnbits.AdminUsername, internal.Configuration.Lnbits.AdminPassword)
+
 	return TipBot{
 		DB:       dbs,
-		Client:   lnbits.NewClient(internal.Configuration.Lnbits.AdminKey, internal.Configuration.Lnbits.Url),
+		Client:   client,
 		Bunt:     createBunt(internal.Configuration.Database.BuntDbPath),
 		ShopBunt: createBunt(internal.Configuration.Database.ShopBuntDbPath),
 		Telegram: newTelegramBot(),

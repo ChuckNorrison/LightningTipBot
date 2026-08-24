@@ -183,6 +183,15 @@ func (bot *TipBot) createInvoiceWithEvent(ctx context.Context, user *lnbits.User
 		log.Errorln(errmsg)
 		return InvoiceEvent{}, err
 	}
+
+        pr := invoice.PaymentRequest
+        if pr == "" {
+            pr = invoice.Bolt11
+        }
+        if pr == "" {
+            return InvoiceEvent{}, fmt.Errorf("[/invoice] empty bolt11 from LNbits")
+        }
+
 	invoiceEvent := InvoiceEvent{
 		Invoice: &Invoice{PaymentHash: invoice.PaymentHash,
 			PaymentRequest: invoice.PaymentRequest,
