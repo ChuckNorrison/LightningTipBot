@@ -119,7 +119,6 @@ func (w Wallet) BalanceSats() int64 {
         return w.BalanceMsat / 1000
     }
     if w.Balance > 0 {
-        // Viele Endpoints setzen nur "balance", ebenfalls in msat
         return w.Balance / 1000
     }
     return 0

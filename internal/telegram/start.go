@@ -159,6 +159,35 @@ func (bot TipBot) createWallet(user *lnbits.User) error {
     return UpdateUserRecord(user, bot)
 }
 
+// needsWalletRepair detects LNbits 1.x migration mismatches:
+// local DB points at default empty "LNbits wallet" instead of "{telegramId} (@user)".
+func needsWalletRepair(user *lnbits.User) bool {
+    if user == nil {
+        return false
+    }
+    if user.ID == "" || user.Wallet == nil || user.Wallet.ID == "" {
+        return true
+    }
+    if user.Wallet.Inkey == "" && user.Wallet.Adminkey == "" {
+        return true
+    }
+
+    tgID := user.Name
+    if tgID == "" && user.Telegram != nil {
+        tgID = strconv.FormatInt(user.Telegram.ID, 10)
+    }
+
+    name := strings.TrimSpace(user.Wallet.Name)
+    if name == "" || strings.EqualFold(name, "LNbits wallet") {
+        return true
+    }
+    // Healthy TipBot wallets are named like "123456789 (@username)"
+    if tgID != "" && !strings.Contains(name, tgID) {
+        return true
+    }
+    return false
+}
+
 func (bot TipBot) initWallet(tguser *tb.User) (*lnbits.User, error) {
     user, err := GetUser(tguser, bot)
     if stderrors.Is(err, gorm.ErrRecordNotFound) {
@@ -187,14 +216,16 @@ func (bot TipBot) initWallet(tguser *tb.User) (*lnbits.User, error) {
         return user, fmt.Errorf("could not initialize wallet")
     }
 
-    // Abwärtskompatibel: falsches Wallet automatisch korrigieren (nicht blockierend)
-
-    if user != nil {
-        log.Errorln("[initWallet] calling repairWalletLink")
+    // Compatibility: Try to repair/update wallet
+    if user != nil && needsWalletRepair(user) {
+        wname := ""
+        if user.Wallet != nil {
+            wname = user.Wallet.Name
+        }
+        log.Warnf("[initWallet] wallet mismatch for %s (name=%q) – repairWalletLink", user.Name, wname)
         if rerr := bot.repairWalletLink(user); rerr != nil {
-            log.Errorln("[initWallet] repairWalletLink:", rerr.Error())
+            log.Warnln("[initWallet] repairWalletLink:", rerr.Error())
         }
     }
-
     return user, nil
 }

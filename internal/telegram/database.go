@@ -262,7 +262,7 @@ func debugStack() {
 func UpdateUserRecord(user *lnbits.User, bot TipBot) error {
     user.UpdatedAt = time.Now()
 
-    // Primary Key = Telegram-ID (abwärtskompatibel)
+    // Primary Key = Telegram-ID (compatibility)
     if user.Name == "" && user.Telegram != nil {
         user.Name = strconv.FormatInt(user.Telegram.ID, 10)
     }
@@ -273,7 +273,7 @@ func UpdateUserRecord(user *lnbits.User, bot TipBot) error {
         return fmt.Errorf(errmsg)
     }
 
-    // Anon-IDs nur setzen, wenn Wallet vorhanden
+    // Only set Anon-IDs if wallet exists
     if user.AnonIDSha256 == "" && user.Wallet != nil && user.Wallet.ID != "" {
         user.AnonIDSha256 = str.AnonIdSha256(user)
     }
@@ -284,7 +284,7 @@ func UpdateUserRecord(user *lnbits.User, bot TipBot) error {
         user.UUID = str.UUIDSha256(user)
     }
 
-    // 1) Normal speichern
+    // save user
     tx := bot.DB.Users.Save(user)
     if tx.Error == nil {
         log.Tracef("[UpdateUserRecord] Records of user %s updated.", GetUserStr(user.Telegram))
@@ -312,14 +312,14 @@ func UpdateUserRecord(user *lnbits.User, bot TipBot) error {
     }
 
     if q.Error != nil {
-        // nach Cleanup erneut inserten
+        // save again after repair
         tx = bot.DB.Users.Save(user)
         if tx.Error != nil {
             log.Errorln("[UpdateUserRecord] Recovery insert failed:", tx.Error.Error())
             return tx.Error
         }
     } else {
-        // bestehenden Datensatz mit frischen LNbits-Daten mergen
+        // merge current dataset 
         existing.ID = user.ID
         if user.Wallet != nil {
             existing.Wallet = user.Wallet
@@ -341,6 +341,7 @@ func UpdateUserRecord(user *lnbits.User, bot TipBot) error {
         if user.Telegram != nil {
             existing.Telegram = user.Telegram
         }
+        // save finished dataset
         tx = bot.DB.Users.Save(&existing)
         if tx.Error != nil {
             log.Errorln("[UpdateUserRecord] Recovery update failed:", tx.Error.Error())

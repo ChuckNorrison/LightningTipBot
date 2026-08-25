@@ -46,9 +46,10 @@ func (c *Client) FindUserAndWalletByTelegramID(telegramID string) (User, *Wallet
         for i := range full.Wallets {
             w := full.Wallets[i]
             if w.Name == "" || !strings.Contains(w.Name, telegramID) {
+                // telegram user wallet name should be like "12345678 (@username)", skip
                 continue
             }
-            // Keys müssen vorhanden sein
+
             if w.Inkey == "" && w.Adminkey == "" {
                 log.Warnf("[FindUserAndWallet] skip %s – no keys", w.ID)
                 continue
@@ -57,6 +58,7 @@ func (c *Client) FindUserAndWalletByTelegramID(telegramID string) (User, *Wallet
             log.Errorf("[FindUserAndWallet] candidate id=%s name=%q sats=%d msat=%d inkey=%d",
                 w.ID, w.Name, bal, w.BalanceMsat, len(w.Inkey))
 
+            // remember wallet with highest balance
             if bestWallet == nil || bal > bestWallet.BalanceSats() {
                 bestUser = full
                 cp := w
@@ -68,7 +70,7 @@ func (c *Client) FindUserAndWalletByTelegramID(telegramID string) (User, *Wallet
     if bestWallet == nil {
         return empty, nil, fmt.Errorf("no wallet containing %s with keys", telegramID)
     }
-    // Nach dem besten Treffer: nochmal GetUser, Keys sicher übernehmen
+    // after the best wallet was found, validate again GetUser, Keys sicher übernehmen
     full, err := c.GetUser(bestUser.ID)
     if err == nil {
         for i := range full.Wallets {
@@ -201,6 +203,8 @@ func (c *Client) ensureToken() error {
     c.mu.Lock()
     defer c.mu.Unlock()
 
+    // Reuse the cached Bearer token if it is still valid.
+    // Refresh 5 minutes before actual expiry to avoid edge-of-expiry failures.
     if c.accessToken != "" && time.Now().Before(c.tokenExpiresAt.Add(-5*time.Minute)) {
         c.header = req.Header{
             "Content-Type":  "application/json",
@@ -219,6 +223,7 @@ func (c *Client) ensureToken() error {
         "password": c.adminPassword,
     }
 
+    // Send authentication
     resp, err := req.Post(c.url+"/api/v1/auth", req.BodyJSON(body))
     if err != nil {
         return err
@@ -337,6 +342,7 @@ func (w Wallet) Invoice(params InvoiceParams, c *Client) (lntx Invoice, err erro
     if err != nil {
         return
     }
+    // Format error in json and return
     if resp.Response().StatusCode >= 300 {
         var reqErr Error
         resp.ToJSON(&reqErr)
