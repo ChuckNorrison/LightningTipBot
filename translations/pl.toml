@@ -128,8 +128,7 @@ advancedMessage = """%s
 */faucet* 🚰 Stwórz kranik (_faucet_): `/faucet <pojemność> <na_użytkownika>`
 */tipjar* 🍯 Stwórz słoik na napiwki (_tipjar_): `/tipjar <pojemność> <na_użytkownika>`
 */group* 🎟 Stwórz bilety na wejście do grupy: `/group add <mojagrupa> [<cena_biletu>]`
-*/shop* 🛍 Przeglądaj sklepy: `/shop` lub `/shop <użytkownik/id_sklepu>`
-*/generate* 🎆 Generuj obrazy przy użyciu DALLE-2: `/generate <podpowiedź>`"""
+*/shop* 🛍 Przeglądaj sklepy: `/shop` lub `/shop <użytkownik/id_sklepu>`"""
 
 
 # GENERIC
@@ -398,8 +397,3 @@ Aby dołączyć do grupy, napisz do %s i napisz w prywatnej wiadomości `/join <
 📖 *Użycie:*
 *Dla adminów (w czacie grupowym):* `/group add <nazwa_grupy> [<cena_biletu>]`\nPrzykład: `/group add NajlepszaGrupaBitcoinowa 1000`
 *Dla użytkowników (w czacie prywatnym):* `/join <nazwa_grupy>`\nPrzykład: `/join NajlepszaGrupaBitcoinowa`"""
-
-# DALLE GENERATE
-generateDalleHelpMessage        = """Generuj obrazy przy użyciu OpenAI DALLE 2.\nUżycie: `/generate <podpowiedź>`\nCena: 1000 sat"""
-generateDallePayInvoiceMessage  = """Opłać tę fakturę by wygenerować 4 obrazy 👇"""
-generateDalleGeneratingMessage  = """Twoje obrazy są generowane. Proszę czekaj..."""

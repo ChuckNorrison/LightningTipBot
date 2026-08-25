@@ -59,7 +59,6 @@ const (
 	UserStateShopItemSendPrice
 	UserStateShopItemSendItemFile
 	UserEnterShopsDescription
-	UserEnterDallePrompt
 )
 
 type UserStateKey int

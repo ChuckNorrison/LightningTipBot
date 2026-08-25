@@ -25,7 +25,3 @@ database:
   transactions_path: "data/transactions.db"
   shop_buntdb_path: "data/shop.db"
   groupsdb_path: "data/groups.db"
-generate:
-  dalle_key: "asd"
-  dalle_price: 1000
-  worker: 2

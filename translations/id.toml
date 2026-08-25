@@ -123,8 +123,7 @@ advancedMessage = """%s
 */faucet* 🚰 Membuat sebuah keran `/faucet <kapasitas> <per_pengguna>`
 */tipjar* 🍯 Create a tipjar: `/tipjar <capacity> <per_user>`
 */group* 🎟 Create group tickets: `/group add <mygroup> [<ticket_price>]`
-*/shop* 🛍 Browse shops: `/shop` or `/shop <user/shop_id>`
-*/generate* 🎆 Generate DALLE-2 images: `/generate <prompt>`"""
+*/shop* 🛍 Browse shops: `/shop` or `/shop <user/shop_id>`"""
 
 # GENERIC
 enterAmountRangeMessage        = """💯 Masukkan jumlah diantara %d dan %d sat."""
