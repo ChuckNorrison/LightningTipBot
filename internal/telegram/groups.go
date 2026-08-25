@@ -90,31 +90,38 @@ var (
 // groupHandler is called if the /group <cmd> command is invoked. It then decides with other
 // handler to call depending on the <cmd> passed.
 func (bot TipBot) groupHandler(ctx intercept.Context) (intercept.Context, error) {
-	m := ctx.Message()
-	splits := strings.Split(m.Text, " ")
-	user := LoadUser(ctx)
-	if len(splits) == 1 {
-		if ctx.Message().Private() {
-			bot.trySendMessage(ctx.Message().Chat, fmt.Sprintf(Translate(ctx, "groupHelpMessage"), GetUserStr(bot.Telegram.Me), GetUserStr(bot.Telegram.Me)))
-		} else {
-			if bot.isOwner(ctx.Message().Chat, user.Telegram) {
-				bot.trySendMessage(ctx.Message().Chat, fmt.Sprintf(Translate(ctx, "commandPrivateMessage"), GetUserStr(bot.Telegram.Me)))
-			}
-		}
-		return ctx, nil
-	} else if len(splits) > 1 {
-		if splits[1] == "join" {
-			return bot.groupRequestJoinHandler(ctx)
-		}
-		if splits[1] == "add" {
-			return bot.addGroupHandler(ctx)
-		}
-		if splits[1] == "remove" {
-			// todo -- implement this
-			// return bot.addGroupHandler(ctx, m)
-		}
-	}
-	return ctx, nil
+    m := ctx.Message()
+    splits := strings.Split(m.Text, " ")
+    user := LoadUser(ctx)
+    if len(splits) == 1 {
+        if ctx.Message().Private() {
+            me := str.MarkdownEscape(GetUserStr(bot.Telegram.Me))
+            bot.trySendMessage(
+                ctx.Message().Chat,
+                fmt.Sprintf(Translate(ctx, "groupHelpMessage"), me, me),
+            )
+        } else {
+            if bot.isOwner(ctx.Message().Chat, user.Telegram) {
+                me := str.MarkdownEscape(GetUserStr(bot.Telegram.Me))
+                bot.trySendMessage(
+                    ctx.Message().Chat,
+                    fmt.Sprintf(Translate(ctx, "commandPrivateMessage"), me),
+                )
+            }
+        }
+        return ctx, nil
+    } else if len(splits) > 1 {
+        if splits[1] == "join" {
+            return bot.groupRequestJoinHandler(ctx)
+        }
+        if splits[1] == "add" {
+            return bot.addGroupHandler(ctx)
+        }
+        if splits[1] == "remove" {
+            // todo -- implement this
+        }
+    }
+    return ctx, nil
 }
 
 // groupRequestJoinHandler sends a payment request to the user who wants to join a group
