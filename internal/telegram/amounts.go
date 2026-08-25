@@ -7,16 +7,16 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/LightningTipBot/LightningTipBot/internal/telegram/intercept"
+	"github.com/ChuckNorrison/LightningTipBot/internal/telegram/intercept"
 
-	"github.com/LightningTipBot/LightningTipBot/internal/errors"
+	"github.com/ChuckNorrison/LightningTipBot/internal/errors"
 
-	"github.com/LightningTipBot/LightningTipBot/internal/runtime/mutex"
-	"github.com/LightningTipBot/LightningTipBot/internal/storage"
+	"github.com/ChuckNorrison/LightningTipBot/internal/runtime/mutex"
+	"github.com/ChuckNorrison/LightningTipBot/internal/storage"
 
-	"github.com/LightningTipBot/LightningTipBot/internal/lnbits"
-	"github.com/LightningTipBot/LightningTipBot/internal/price"
-	"github.com/LightningTipBot/LightningTipBot/internal/runtime"
+	"github.com/ChuckNorrison/LightningTipBot/internal/lnbits"
+	"github.com/ChuckNorrison/LightningTipBot/internal/price"
+	"github.com/ChuckNorrison/LightningTipBot/internal/runtime"
 	log "github.com/sirupsen/logrus"
 	tb "gopkg.in/lightningtipbot/telebot.v3"
 )

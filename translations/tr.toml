@@ -93,7 +93,7 @@ _Lightning Network neredeyse hiç enerji gerektirmeyen hızlı ve ucuz Bitcoin �
 _Bu bottaki paranı dünyadaki herhangi bir Lightning cüzdanına gönderebilirsin. Cep telefonunun için önerilen Lightning cüzdanları şunlardır:_ [Phoenix](https://phoenix.acinq.co/)_,_ [Breez](https://breez.technology/)_,_ [Muun](https://muun.com/)_ (emanet edilmeyen), veya_ [Wallet of Satoshi](https://www.walletofsatoshi.com/) _(kolay)_.
 
 📄 *Açık Kaynak*
-_Bu bot ücretsiz ve_ [açık kaynak](https://github.com/LightningTipBot/LightningTipBot) _yazılım. Kendi bilgisayarında çalıştırabilir ve topluluğun için kullanabilirsin._
+_Bu bot ücretsiz ve_ [açık kaynak](https://github.com/ChuckNorrison/LightningTipBot) _yazılım. Kendi bilgisayarında çalıştırabilir ve topluluğun için kullanabilirsin._
 
 ✈️ *Telegram*
 _/tip göndermek için botu Telegram grubunuza ekle. Bot grubun yöneticisiyse, yürütmeden sonra bazı komutları silerek sohbeti de temizleyecektir._

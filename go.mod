@@ -1,4 +1,4 @@
-module github.com/LightningTipBot/LightningTipBot
+module github.com/ChuckNorrison/LightningTipBot
 
 go 1.17
 

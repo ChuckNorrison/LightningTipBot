@@ -97,7 +97,7 @@ _The Lightning Network is a payment protocol that enables fast and cheap Bitcoin
 _Your funds on this bot can be sent to any other Lightning wallet and vice versa. Recommended Lightning wallets for your phone are_ [Phoenix](https://phoenix.acinq.co/)_,_ [Breez](https://breez.technology/)_,_ [Muun](https://muun.com/)_ (non-custodial), or_ [Wallet of Satoshi](https://www.walletofsatoshi.com/) _(easy)_.
 
 📄 *Open Source*
-_This bot is free and_ [open source](https://github.com/LightningTipBot/LightningTipBot) _software. You can run it on your own computer and use it in your own community._
+_This bot is free and_ [open source](https://github.com/ChuckNorrison/LightningTipBot) _software. You can run it on your own computer and use it in your own community._
 
 ✈️ *Telegram*
 _Add this bot to your Telegram group chat to /tip posts. If you make the bot admin of the group it will also clean up commands to keep the chat tidy._

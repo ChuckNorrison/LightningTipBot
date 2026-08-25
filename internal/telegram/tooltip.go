@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/LightningTipBot/LightningTipBot/internal/runtime"
+	"github.com/ChuckNorrison/LightningTipBot/internal/runtime"
 	"github.com/tidwall/buntdb"
 	"github.com/tidwall/gjson"
 

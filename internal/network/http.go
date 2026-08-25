@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/LightningTipBot/LightningTipBot/internal"
+	"github.com/ChuckNorrison/LightningTipBot/internal"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/proxy"
 )

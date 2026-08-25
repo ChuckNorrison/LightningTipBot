@@ -10,13 +10,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/LightningTipBot/LightningTipBot/internal/runtime"
-	"github.com/LightningTipBot/LightningTipBot/internal/telegram/intercept"
+	"github.com/ChuckNorrison/LightningTipBot/internal/runtime"
+	"github.com/ChuckNorrison/LightningTipBot/internal/telegram/intercept"
 	tb "gopkg.in/lightningtipbot/telebot.v3"
 
-	"github.com/LightningTipBot/LightningTipBot/internal/lnbits"
-	"github.com/LightningTipBot/LightningTipBot/internal/satdress"
-	"github.com/LightningTipBot/LightningTipBot/internal/storage"
+	"github.com/ChuckNorrison/LightningTipBot/internal/lnbits"
+	"github.com/ChuckNorrison/LightningTipBot/internal/satdress"
+	"github.com/ChuckNorrison/LightningTipBot/internal/storage"
 	"github.com/eko/gocache/store"
 	log "github.com/sirupsen/logrus"
 	"github.com/skip2/go-qrcode"

@@ -61,7 +61,7 @@ infoButtonMessage = """Info"""
 # HELP
 
 helpMessage = """⚡️ *Wallet*
-_Dieser Bot ist ein Bitcoin Lightning Wallet der Tips (kleine Beträge) auf Telegram senden kann. Um ein Tip zu senden, füge den Bot in einen Gruppenchat hinzu. Die grundlegende Einheit von Tips sind Satoshis (sat). 100,000,000 sat = 1 Bitcoin. Gebe 📚 /basics ein für mehr Informationen._
+_Dieser Bot ist ein Bitcoin Lightning Wallet der Tips (kleine Beträge) auf Telegram senden kann. Um einen Tip zu senden, füge den Bot in einen Gruppenchat hinzu. Die grundlegende Einheit von Tips sind Satoshis (sat). 100,000,000 sat = 1 Bitcoin. Gebe 📚 /basics ein für mehr Informationen._
 
 ❤️ *Spenden*
 _Dieser Bot erhebt keine Gebühren, kostet aber Satoshis um betrieben zu werden. Wenn du den Bot magst, kannst das Projekt mit eine Spende unterstützen. Um zu spenden, gebe ein: _ `/donate 1000`
@@ -94,7 +94,7 @@ _Das Lightning Netzwerk ist ein Bezahlprotokoll, das schnelle und günstige Bitc
 _Dein Geld auf diesem Bot kannst du an jedes andere Lightning Wallet der Welt versenden. Empfohlene Lightning Wallets für dein Handy sind _ [Phoenix](https://phoenix.acinq.co/)_,_ [Breez](https://breez.technology/)_,_ [Muun](https://muun.com/)_ (eigene Verwahrung), oder_ [Wallet of Satoshi](https://www.walletofsatoshi.com/) _(einfach)_.
 
 📄 *Open Source*
-_Dieser Bot ist kostenlose_ [Open Source](https://github.com/LightningTipBot/LightningTipBot) _Software. Du kannst ihn auf deinem eigenen Rechner laufen lassen und für deine eigene Community betreiben._
+_Dieser Bot ist kostenlose_ [Open Source](https://github.com/ChuckNorrison/LightningTipBot) _Software. Du kannst ihn auf deinem eigenen Rechner laufen lassen und für deine eigene Community betreiben._
 
 ✈️ *Telegram*
 _Füge den Bot in deine Telegram Gruppenchats hinzu, um Nachrichten ein /tip zu senden. Wenn der Bot Admin der Gruppe ist, wird er auch den Chat aufräumen, indem er manche Befehle nach Ausführung löscht._

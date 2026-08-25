@@ -8,14 +8,14 @@ import (
 	"time"
 	"strings"
 
-	"github.com/LightningTipBot/LightningTipBot/internal/telegram/intercept"
+	"github.com/ChuckNorrison/LightningTipBot/internal/telegram/intercept"
 
-	"github.com/LightningTipBot/LightningTipBot/internal/errors"
+	"github.com/ChuckNorrison/LightningTipBot/internal/errors"
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/LightningTipBot/LightningTipBot/internal/lnbits"
-	"github.com/LightningTipBot/LightningTipBot/internal/str"
+	"github.com/ChuckNorrison/LightningTipBot/internal/lnbits"
+	"github.com/ChuckNorrison/LightningTipBot/internal/str"
 	tb "gopkg.in/lightningtipbot/telebot.v3"
 	"gorm.io/gorm"
 )

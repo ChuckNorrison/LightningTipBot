@@ -1,8 +1,8 @@
 package telegram
 
 import (
-	"github.com/LightningTipBot/LightningTipBot/internal/lnbits"
-	"github.com/LightningTipBot/LightningTipBot/internal/telegram/intercept"
+	"github.com/ChuckNorrison/LightningTipBot/internal/lnbits"
+	"github.com/ChuckNorrison/LightningTipBot/internal/telegram/intercept"
 )
 
 type StateCallbackMessage map[lnbits.UserStateKey]func(ctx intercept.Context) (intercept.Context, error)

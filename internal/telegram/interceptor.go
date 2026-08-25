@@ -5,16 +5,16 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/LightningTipBot/LightningTipBot/internal/errors"
+	"github.com/ChuckNorrison/LightningTipBot/internal/errors"
 
-	"github.com/LightningTipBot/LightningTipBot/internal/runtime/mutex"
-	"github.com/LightningTipBot/LightningTipBot/internal/runtime/once"
+	"github.com/ChuckNorrison/LightningTipBot/internal/runtime/mutex"
+	"github.com/ChuckNorrison/LightningTipBot/internal/runtime/once"
 
-	"github.com/LightningTipBot/LightningTipBot/internal/i18n"
+	"github.com/ChuckNorrison/LightningTipBot/internal/i18n"
 	i18n2 "github.com/nicksnyder/go-i18n/v2/i18n"
 
-	"github.com/LightningTipBot/LightningTipBot/internal/lnbits"
-	"github.com/LightningTipBot/LightningTipBot/internal/telegram/intercept"
+	"github.com/ChuckNorrison/LightningTipBot/internal/lnbits"
+	"github.com/ChuckNorrison/LightningTipBot/internal/telegram/intercept"
 	log "github.com/sirupsen/logrus"
 	tb "gopkg.in/lightningtipbot/telebot.v3"
 )

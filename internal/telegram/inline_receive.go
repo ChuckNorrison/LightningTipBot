@@ -7,19 +7,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/LightningTipBot/LightningTipBot/internal/errors"
-	"github.com/LightningTipBot/LightningTipBot/internal/telegram/intercept"
+	"github.com/ChuckNorrison/LightningTipBot/internal/errors"
+	"github.com/ChuckNorrison/LightningTipBot/internal/telegram/intercept"
 
-	"github.com/LightningTipBot/LightningTipBot/internal/runtime/mutex"
-	"github.com/LightningTipBot/LightningTipBot/internal/storage"
+	"github.com/ChuckNorrison/LightningTipBot/internal/runtime/mutex"
+	"github.com/ChuckNorrison/LightningTipBot/internal/storage"
 
 	"github.com/eko/gocache/store"
 	"github.com/skip2/go-qrcode"
 
-	"github.com/LightningTipBot/LightningTipBot/internal/i18n"
-	"github.com/LightningTipBot/LightningTipBot/internal/lnbits"
+	"github.com/ChuckNorrison/LightningTipBot/internal/i18n"
+	"github.com/ChuckNorrison/LightningTipBot/internal/lnbits"
 
-	"github.com/LightningTipBot/LightningTipBot/internal/runtime"
+	"github.com/ChuckNorrison/LightningTipBot/internal/runtime"
 	log "github.com/sirupsen/logrus"
 	tb "gopkg.in/lightningtipbot/telebot.v3"
 )

@@ -1,7 +1,7 @@
 package admin
 
 import (
-	"github.com/LightningTipBot/LightningTipBot/internal/dalle"
+	"github.com/ChuckNorrison/LightningTipBot/internal/dalle"
 	"net/http"
 )
 

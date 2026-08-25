@@ -4,21 +4,21 @@ import (
 	"net/http"
 	"runtime/debug"
 
-	"github.com/LightningTipBot/LightningTipBot/internal"
-	"github.com/LightningTipBot/LightningTipBot/internal/api"
-	"github.com/LightningTipBot/LightningTipBot/internal/api/admin"
-	"github.com/LightningTipBot/LightningTipBot/internal/api/userpage"
-	"github.com/LightningTipBot/LightningTipBot/internal/lndhub"
-	"github.com/LightningTipBot/LightningTipBot/internal/lnurl"
-	"github.com/LightningTipBot/LightningTipBot/internal/runtime/mutex"
+	"github.com/ChuckNorrison/LightningTipBot/internal"
+	"github.com/ChuckNorrison/LightningTipBot/internal/api"
+	"github.com/ChuckNorrison/LightningTipBot/internal/api/admin"
+	"github.com/ChuckNorrison/LightningTipBot/internal/api/userpage"
+	"github.com/ChuckNorrison/LightningTipBot/internal/lndhub"
+	"github.com/ChuckNorrison/LightningTipBot/internal/lnurl"
+	"github.com/ChuckNorrison/LightningTipBot/internal/runtime/mutex"
 
 	_ "net/http/pprof"
 
 	tb "gopkg.in/lightningtipbot/telebot.v3"
 
-	"github.com/LightningTipBot/LightningTipBot/internal/lnbits/webhook"
-	"github.com/LightningTipBot/LightningTipBot/internal/price"
-	"github.com/LightningTipBot/LightningTipBot/internal/telegram"
+	"github.com/ChuckNorrison/LightningTipBot/internal/lnbits/webhook"
+	"github.com/ChuckNorrison/LightningTipBot/internal/price"
+	"github.com/ChuckNorrison/LightningTipBot/internal/telegram"
 	log "github.com/sirupsen/logrus"
 )
 

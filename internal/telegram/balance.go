@@ -3,8 +3,8 @@ package telegram
 import (
 	"fmt"
 
-	"github.com/LightningTipBot/LightningTipBot/internal/errors"
-	"github.com/LightningTipBot/LightningTipBot/internal/telegram/intercept"
+	"github.com/ChuckNorrison/LightningTipBot/internal/errors"
+	"github.com/ChuckNorrison/LightningTipBot/internal/telegram/intercept"
 
 	log "github.com/sirupsen/logrus"
 

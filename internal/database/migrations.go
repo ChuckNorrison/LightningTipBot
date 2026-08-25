@@ -3,8 +3,8 @@ package database
 import (
 	"fmt"
 
-	"github.com/LightningTipBot/LightningTipBot/internal/lnbits"
-	"github.com/LightningTipBot/LightningTipBot/internal/str"
+	"github.com/ChuckNorrison/LightningTipBot/internal/lnbits"
+	"github.com/ChuckNorrison/LightningTipBot/internal/str"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )

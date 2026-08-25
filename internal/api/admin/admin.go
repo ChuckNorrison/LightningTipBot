@@ -1,7 +1,7 @@
 package admin
 
 import (
-	"github.com/LightningTipBot/LightningTipBot/internal/telegram"
+	"github.com/ChuckNorrison/LightningTipBot/internal/telegram"
 )
 
 type Service struct {

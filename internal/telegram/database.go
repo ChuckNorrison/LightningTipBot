@@ -12,18 +12,18 @@ import (
 	"time"
 	"strings"
 
-	"github.com/LightningTipBot/LightningTipBot/internal/str"
+	"github.com/ChuckNorrison/LightningTipBot/internal/str"
 
 	"github.com/eko/gocache/store"
 
-	"github.com/LightningTipBot/LightningTipBot/internal"
-	"github.com/LightningTipBot/LightningTipBot/internal/database"
-	"github.com/LightningTipBot/LightningTipBot/internal/storage"
+	"github.com/ChuckNorrison/LightningTipBot/internal"
+	"github.com/ChuckNorrison/LightningTipBot/internal/database"
+	"github.com/ChuckNorrison/LightningTipBot/internal/storage"
 	"github.com/tidwall/buntdb"
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/LightningTipBot/LightningTipBot/internal/lnbits"
+	"github.com/ChuckNorrison/LightningTipBot/internal/lnbits"
 	tb "gopkg.in/lightningtipbot/telebot.v3"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
