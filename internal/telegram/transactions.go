@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/ChuckNorrison/LightningTipBot/internal/lnbits"
@@ -50,7 +51,13 @@ func (txlist *TransactionsList) printTransactions(ctx intercept.Context) string 
 				txstr += "🟢"
 			}
 		}
-		timestr := time.Unix(int64(p.Time), 0).UTC().Format("2 Jan 06 15:04")
+		var timestr string
+		ts, err := strconv.ParseInt(p.Time, 10, 64)
+		if err != nil {
+			timestr = p.Time
+		} else {
+			timestr = time.Unix(ts, 0).UTC().Format("2 Jan 06 15:04")
+		}
 		txstr += fmt.Sprintf("` %s`", timestr)
 		txstr += fmt.Sprintf("` %+d sat`", p.Amount/1000)
 		if p.Fee > 0 {

@@ -130,7 +130,7 @@ type Payment struct {
 	Amount        int64       `json:"amount"`
 	Fee           int64       `json:"fee"`
 	Memo          string      `json:"memo"`
-	Time          int         `json:"time"`
+	Time          string      `json:"time"`
 	Bolt11        string      `json:"bolt11"`
 	Preimage      string      `json:"preimage"`
 	PaymentHash   string      `json:"payment_hash"`
