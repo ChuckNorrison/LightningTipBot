@@ -3,10 +3,9 @@ package telegram
 import (
 	"context"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"net/http"
 	"strings"
+
+	"github.com/ChuckNorrison/LightningTipBot/internal"
 
 	"github.com/ChuckNorrison/LightningTipBot/internal/telegram/intercept"
 
@@ -15,14 +14,14 @@ import (
 	"github.com/ChuckNorrison/LightningTipBot/internal/str"
 
 	"github.com/ChuckNorrison/LightningTipBot/internal/lnbits"
+
 	log "github.com/sirupsen/logrus"
 	tb "gopkg.in/lightningtipbot/telebot.v3"
 )
 
-// PLEASE DO NOT CHANGE THE CODE IN THIS FILE
-// YOU MIGHT BREAK DONATIONS TO THE ORIGINAL PROJECT
-// THE DEVELOPMENT OF LIGHTNINGTIPBOT RELIES ON DONATIONS
-// IF YOU USE THIS PROJECT, LEAVE THIS CODE ALONE
+// AS THE PROJECT WAS ABANDONED AND FORKED BY ChuckNorrison
+// DONATIONS WILL BE RECEIVED BY THE RUNNING BOT OWNER FROM NOW
+// THANKS TO ALL CONTRIBUTORS OF THIS PROJECT
 
 var (
 	donationEndpoint string
@@ -37,124 +36,122 @@ func helpDonateUsage(ctx context.Context, errormsg string) string {
 }
 
 func (bot TipBot) donationHandler(ctx intercept.Context) (intercept.Context, error) {
-	// check and print all commands
-	m := ctx.Message()
-	bot.anyTextHandler(ctx)
-	user := LoadUser(ctx)
-	if user.Wallet == nil {
-		return ctx, errors.Create(errors.UserNoWalletError)
-	}
-	// if no amount is in the command, ask for it
-	amount, err := decodeAmountFromCommand(m.Text)
-	if (err != nil || amount < 1) && m.Chat.Type == tb.ChatPrivate {
-		// // no amount was entered, set user state and ask for amount
-		_, err = bot.askForAmount(ctx, "", "CreateDonationState", 0, 0, m.Text)
-		return ctx, err
-	}
+    m := ctx.Message()
+    bot.anyTextHandler(ctx)
 
-	// command is valid
-	msg := bot.trySendMessageEditable(m.Chat, Translate(ctx, "donationProgressMessage"))
-	// get invoice
-	resp, err := http.Get(fmt.Sprintf(donationEndpoint, amount, GetUserStr(user.Telegram), GetUserStr(bot.Telegram.Me)))
-	if err != nil {
-		log.Errorln(err)
-		bot.tryEditMessage(msg, Translate(ctx, "donationErrorMessage"))
-		return ctx, err
-	}
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Errorln(err)
-		bot.tryEditMessage(msg, Translate(ctx, "donationErrorMessage"))
-		return ctx, err
-	}
+    user := LoadUser(ctx)
+    if user.Wallet == nil {
+        return ctx, errors.Create(errors.UserNoWalletError)
+    }
 
-	// send donation invoice
-	// user := LoadUser(ctx)
-	// bot.trySendMessage(user.Telegram, string(body))
-	_, err = user.Wallet.Pay(lnbits.PaymentParams{Out: true, Bolt11: string(body)}, bot.Client)
-	if err != nil {
-		userStr := GetUserStr(user.Telegram)
-		errmsg := fmt.Sprintf("[/donate] Donation failed for user %s: %s", userStr, err)
-		log.Errorln(errmsg)
-		bot.tryEditMessage(msg, Translate(ctx, "donationErrorMessage"))
-		return ctx, err
-	}
-	// hotfix because the edit doesn't work!
-	// todo: fix edit
-	// bot.tryEditMessage(msg, Translate(ctx, "donationSuccess"))
-	bot.tryDeleteMessage(msg)
-	bot.trySendMessage(m.Chat, Translate(ctx, "donationSuccess"))
-	return ctx, nil
-}
+    amount, err := decodeAmountFromCommand(m.Text)
+    if (err != nil || amount < 1) && m.Chat.Type == tb.ChatPrivate {
+        _, err = bot.askForAmount(ctx, "", "CreateDonationState", 0, 0, m.Text)
+        return ctx, err
+    }
+    if err != nil || amount < 1 {
+        bot.trySendMessage(m.Chat, helpDonateUsage(ctx, Translate(ctx, "donateInvalidAmountMessage")))
+        return ctx, err
+    }
 
-func init() {
-	var sb strings.Builder
-	_, err := io.Copy(&sb, rot13Reader{strings.NewReader("uggcf://ya.gvcf/qbangr/%q?sebz=%f&obg=%f")})
-	if err != nil {
-		panic(err)
-	}
-	donationEndpoint = sb.String()
-}
+    msg := bot.trySendMessageEditable(m.Chat, Translate(ctx, "donationProgressMessage"))
 
-type rot13Reader struct {
-	r io.Reader
-}
+    // Recipient: this bot's own wallet
+    botUser, err := GetUser(bot.Telegram.Me, bot)
+    if err != nil || botUser == nil || botUser.Wallet == nil {
+        log.Errorln("[/donate] bot wallet not initialized:", err)
+        bot.tryEditMessage(msg, Translate(ctx, "donationErrorMessage"))
+        return ctx, fmt.Errorf("bot wallet not ready")
+    }
 
-func (rot13 rot13Reader) Read(b []byte) (int, error) {
-	n, err := rot13.r.Read(b)
-	for i := 0; i < n; i++ {
-		switch {
-		case b[i] >= 65 && b[i] <= 90:
-			if b[i] <= 77 {
-				b[i] = b[i] + 13
-			} else {
-				b[i] = b[i] - 13
-			}
-		case b[i] >= 97 && b[i] <= 122:
-			if b[i] <= 109 {
-				b[i] = b[i] + 13
-			} else {
-				b[i] = b[i] - 13
-			}
-		}
-	}
-	return n, err
+    // Ensure bot wallet link is healthy (optional but useful after LNbits upgrades)
+    if rerr := bot.repairWalletLink(botUser); rerr != nil {
+        log.Warnln("[/donate] repairWalletLink:", rerr.Error())
+    }
+    botUser, err = GetUser(bot.Telegram.Me, bot)
+    if err != nil || botUser.Wallet == nil {
+        bot.tryEditMessage(msg, Translate(ctx, "donationErrorMessage"))
+        return ctx, fmt.Errorf("bot wallet not ready after repair")
+    }
+
+    memo := fmt.Sprintf("Donation from %s", GetUserStr(user.Telegram))
+    inv, err := botUser.Wallet.Invoice(
+        lnbits.InvoiceParams{
+            Out:     false,
+            Amount:  amount, // same unit as working /invoice; use amount*1000 if your API expects msat
+            Memo:    memo,
+            Webhook: internal.Configuration.Lnbits.WebhookServer,
+        },
+        bot.Client,
+    )
+    if err != nil {
+        log.Errorln("[/donate] create invoice:", err)
+        bot.tryEditMessage(msg, Translate(ctx, "donationErrorMessage"))
+        return ctx, err
+    }
+    if inv.PaymentRequest == "" && inv.Bolt11 != "" {
+        inv.PaymentRequest = inv.Bolt11
+    }
+    if inv.PaymentRequest == "" {
+        log.Errorln("[/donate] empty bolt11 from LNbits")
+        bot.tryEditMessage(msg, Translate(ctx, "donationErrorMessage"))
+        return ctx, fmt.Errorf("empty bolt11")
+    }
+
+    _, err = user.Wallet.Pay(
+        lnbits.PaymentParams{Out: true, Bolt11: inv.PaymentRequest},
+        bot.Client,
+    )
+    if err != nil {
+        log.Errorf("[/donate] Donation failed for user %s: %s", GetUserStr(user.Telegram), err)
+        bot.tryEditMessage(msg, Translate(ctx, "donationErrorMessage"))
+        return ctx, err
+    }
+
+    bot.tryDeleteMessage(msg)
+    bot.trySendMessage(m.Chat, Translate(ctx, "donationSuccess"))
+    return ctx, nil
 }
 
 func (bot TipBot) parseCmdDonHandler(ctx intercept.Context) error {
-	m := ctx.Message()
-	arg := ""
-	if strings.HasPrefix(strings.ToLower(m.Text), "/send") {
-		arg, _ = getArgumentFromCommand(m.Text, 2)
-		if arg != "@"+bot.Telegram.Me.Username {
-			return fmt.Errorf("err")
-		}
-	}
-	if strings.HasPrefix(strings.ToLower(m.Text), "/tip") {
-		arg = GetUserStr(m.ReplyTo.Sender)
-		if arg != "@"+bot.Telegram.Me.Username {
-			return fmt.Errorf("err")
-		}
-	}
-	if arg == "@LightningTipBot" || len(arg) < 1 {
-		return fmt.Errorf("err")
-	}
+    m := ctx.Message()
+    arg := ""
 
-	amount, err := decodeAmountFromCommand(m.Text)
-	if err != nil {
-		return err
-	}
+    if strings.HasPrefix(strings.ToLower(m.Text), "/send") {
+        arg, _ = getArgumentFromCommand(m.Text, 2)
+        if arg != "@"+bot.Telegram.Me.Username {
+            return fmt.Errorf("err")
+        }
+    }
 
-	var sb strings.Builder
-	_, err = io.Copy(&sb, rot13Reader{strings.NewReader("Gunax lbh! V'z ebhgvat guvf qbangvba gb YvtugavatGvcObg@ya.gvcf.")})
-	if err != nil {
-		panic(err)
-	}
-	donationInterceptMessage := sb.String()
+    if strings.HasPrefix(strings.ToLower(m.Text), "/tip") {
+        if m.ReplyTo == nil || m.ReplyTo.Sender == nil {
+            return fmt.Errorf("err")
+        }
+        arg = GetUserStr(m.ReplyTo.Sender)
+        if arg != "@"+bot.Telegram.Me.Username {
+            return fmt.Errorf("err")
+        }
+    }
 
-	bot.trySendMessage(m.Sender, str.MarkdownEscape(donationInterceptMessage))
-	m.Text = fmt.Sprintf("/donate %d", amount)
-	bot.donationHandler(ctx)
-	// returning nil here will abort the parent ctx (/pay or /tip)
-	return nil
+    // Only intercept payments addressed to this bot instance
+    if len(arg) < 1 || arg != "@"+bot.Telegram.Me.Username {
+        return fmt.Errorf("err")
+    }
+
+    amount, err := decodeAmountFromCommand(m.Text)
+    if err != nil {
+        return err
+    }
+
+    donationInterceptMessage := fmt.Sprintf(
+        "Thank you! I'm routing this donation to @%s.",
+        bot.Telegram.Me.Username,
+    )
+
+    bot.trySendMessage(m.Sender, str.MarkdownEscape(donationInterceptMessage))
+    m.Text = fmt.Sprintf("/donate %d", amount)
+    bot.donationHandler(ctx)
+    // nil = abort parent handler (/send or /tip)
+    return nil
 }
