@@ -4,6 +4,8 @@
 
 # @LightningTipBot 🏅
 
+[![Go](https://github.com/ChuckNorrison/LightningTipBot/actions/workflows/go.yml/badge.svg?branch=main)](https://github.com/ChuckNorrison/LightningTipBot/actions/workflows/go.yml)
+
 A Telegram Lightning ⚡️ Bitcoin wallet and tip bot for group chats.
 
 This repository contains everything you need to set up and run your own tip bot. If you simply want to use this bot in your group chat without having to install anything just start a conversation with [@BTCMaxisLightning_bot](https://t.me/BTCMaxisLightning_bot) and invite it into your group chat.
