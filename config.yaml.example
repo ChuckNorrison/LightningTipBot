@@ -1,24 +1,24 @@
 bot:
   socks_proxy:
-      host: 127.0.0.1:9996
-      username: test
-      password: username
+      host:
+      username:
+      password:
   tor_proxy:
-      host: 127.0.0.1:9050
+      host:
   http_proxy: ""
-  lnurl_public_host_name: "mylnurl.com"
-  lnurl_server: "https://mylnurl.com"
+  lnurl_public_host_name: "https://myfullnode.com"
+  lnurl_server: "http://127.0.0.1:8099"
   lnurl_image: true
   admin_api_host: localhost:6060
 telegram:
   message_dispose_duration: 10
-  api_key: "1234"
+  api_key: "1234567890:ABCDEFGHIJKLMNOPQRSTUVW"
 lnbits:
   url: "http://127.0.0.1:5000"
-  admin_username: "superusername"
-  admin_password: "superuserpassword"
+  admin_username: "LightningTipBotAdmin"
+  admin_password: "CHANGE_ME"
   webhook_server: "http://0.0.0.0:5588"
-  lnbits_public_url: "link.mylnurl.com"
+  lnbits_public_url: "https://myfullnode.com"
 database:
   db_path: "data/bot.db"
   buntdb_path: "data/bunt.db"

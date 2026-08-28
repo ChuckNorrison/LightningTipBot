@@ -126,6 +126,16 @@ The bot replies to a tipped message to indicate to all participants how many and
 
 Users can send and receive via . For this to work, you need to set the `lnurl_public_server` in `config.yaml`. The bot will then host a LNURL endpoint at `.well-known/lnurlp/username` which handles the data exchange with other wallets. You can set `http_proxy` in `config.yaml` to send outbound requests only via an HTTP proxy.
 
+Nginx config of your LNBits if `lnurl_server: "http://127.0.0.1:8099"` is used (recommended):
+
+```
+location /.well-known/lnurlp/ {
+    proxy_pass http://127.0.0.1:8099;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto https;
+}
+```
+
 ### Send and receive via Lightning Address
 
 Every user has a [Lightning Address](https://lightningaddress.com/) a la `username@host.com` with which they can send to via `/send <amount> <user@domain.com>` and receive from other wallets.
