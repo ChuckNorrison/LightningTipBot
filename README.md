@@ -43,13 +43,19 @@ Start with copy the `config.yaml.example` as `config.yaml`
 - Here we can click on `Create Account` and create a new user. You can freely choose username and a secure password.
 
 <p align="center">
-	<img width="1156" height="558" alt="Create Account" src="resources/Create_Account.png" />
+	<img alt="Create Account" src="resources/Create_Account.png" />
 </p>
 
 - Next we can filter the username in the list of users and toggle admin for this new user
 
 <p align="center">
-	<img width="1156" height="558" alt="Toggle Admin" src="resources/Toggle_Admin.png" />
+	<img alt="Toggle Admin" src="resources/Toggle_Admin.png" />
+</p>
+
+- Since LNBits 1.5.6, we need to update Callback URL Rules to make payment notifications work. Add `https?://127\.0\.0\.1(:\d+)?` and `https?://localhost(:\d+)?`.
+
+<p align="center">
+	<img alt="Toggle Admin" src="resources/Callback_URL_Rules.png" />
 </p>
 
 - Edit your config.yaml and set `admin_username` and `admin_password` with your new admin user credentials

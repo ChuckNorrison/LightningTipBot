@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+	"io"
+	"sync"
 
 	"github.com/ChuckNorrison/LightningTipBot/internal"
 	"github.com/ChuckNorrison/LightningTipBot/internal/lnbits"
@@ -31,19 +33,37 @@ type Server struct {
 }
 
 type Webhook struct {
-	CheckingID    string      `json:"checking_id"`
-	Pending       bool        `json:"pending"`
-	Amount        int64       `json:"amount"`
-	Fee           int64       `json:"fee"`
-	Memo          string      `json:"memo"`
-	Time          int64       `json:"time"`
-	Bolt11        string      `json:"bolt11"`
-	Preimage      string      `json:"preimage"`
-	PaymentHash   string      `json:"payment_hash"`
-	Extra         struct{}    `json:"extra"`
-	WalletID      string      `json:"wallet_id"`
-	Webhook       string      `json:"webhook"`
-	WebhookStatus interface{} `json:"webhook_status"`
+	CheckingID    string               `json:"checking_id"`
+	Pending       bool                 `json:"pending"`
+	Amount        int64                `json:"amount"`
+	Fee           int64                `json:"fee"`
+	Memo          string               `json:"memo"`
+	Time          json.RawMessage      `json:"time"`
+	Bolt11        string               `json:"bolt11"`
+	Preimage      string               `json:"preimage"`
+	PaymentHash   string               `json:"payment_hash"`
+	Extra         json.RawMessage      `json:"extra"`
+	WalletID      string               `json:"wallet_id"`
+	Webhook       string               `json:"webhook"`
+	WebhookStatus interface{}          `json:"webhook_status"`
+}
+
+var (
+    seenMu sync.Mutex
+    seen   = map[string]time.Time{}
+)
+
+func alreadySeen(hash string) bool {
+    if hash == "" {
+        return false
+    }
+    seenMu.Lock()
+    defer seenMu.Unlock()
+    if _, ok := seen[hash]; ok {
+        return true
+    }
+    seen[hash] = time.Now()
+    return false
 }
 
 func NewServer(bot *telegram.TipBot) *Server {
@@ -81,46 +101,66 @@ func (w *Server) newRouter() *mux.Router {
 }
 
 func (w *Server) receive(writer http.ResponseWriter, request *http.Request) {
-	log.Debugln("[Webhook] Received request")
-	webhookEvent := Webhook{}
-	// need to delete the header otherwise the Decode will fail
-	request.Header.Del("content-length")
-	err := json.NewDecoder(request.Body).Decode(&webhookEvent)
-	if err != nil {
-		log.Errorf("[Webhook] Error decoding request: %s", err.Error())
-		writer.WriteHeader(400)
-		return
-	}
-	user, err := w.GetUserByWalletId(webhookEvent.WalletID)
-	if err != nil {
-		log.Errorf("[Webhook] Error getting user: %s", err.Error())
-		writer.WriteHeader(400)
-		return
-	}
-	log.Infoln(fmt.Sprintf("[⚡️ WebHook] User %s (%d) received invoice of %d sat.", telegram.GetUserStr(user.Telegram), user.Telegram.ID, webhookEvent.Amount/1000))
+    log.Debugln("[Webhook] Received request")
 
-	writer.WriteHeader(200)
+    body, err := io.ReadAll(request.Body)
+    if err != nil {
+        log.Errorf("[Webhook] Error reading body: %s", err.Error())
+        writer.WriteHeader(400)
+        return
+    }
 
-	// trigger invoice events
-	txInvoiceEvent := &telegram.InvoiceEvent{Invoice: &telegram.Invoice{PaymentHash: webhookEvent.PaymentHash}}
-	err = w.buntdb.Get(txInvoiceEvent)
-	if err != nil {
-		log.Errorln(err)
-	} else {
-		// do something with the event
-		if c := telegram.InvoiceCallback[txInvoiceEvent.Callback]; c.Function != nil {
-			if err := telegram.AssertEventType(txInvoiceEvent, c.Type); err != nil {
-				log.Errorln(err)
-				return
-			}
-			go c.Function(txInvoiceEvent)
-			return
-		}
-	}
+    if len(body) > 0 && body[0] == '"' {
+        var s string
+        if err := json.Unmarshal(body, &s); err != nil {
+            log.Errorf("[Webhook] Error unwrapping string: %s", err.Error())
+            writer.WriteHeader(400)
+            return
+        }
+        body = []byte(s)
+    }
 
-	// fallback: send a message to the user if there is no callback for this invoice
-	_, err = w.bot.Send(user.Telegram, fmt.Sprintf(i18n.Translate(user.Telegram.LanguageCode, "invoiceReceivedMessage"), webhookEvent.Amount/1000))
-	if err != nil {
-		log.Errorln(err)
-	}
+    webhookEvent := Webhook{}
+    err = json.Unmarshal(body, &webhookEvent)
+    if err != nil {
+        log.Errorf("[Webhook] Error decoding request: %s body=%s", err.Error(), string(body))
+        writer.WriteHeader(400)
+        return
+    }
+
+    if alreadySeen(webhookEvent.PaymentHash) {
+        log.Infof("[Webhook] duplicate %s ignored", webhookEvent.PaymentHash)
+        writer.WriteHeader(200)
+        return
+    }
+
+    user, err := w.GetUserByWalletId(webhookEvent.WalletID)
+    if err != nil {
+        log.Errorf("[Webhook] Error getting user: %s", err.Error())
+        writer.WriteHeader(400)
+        return
+    }
+    log.Infoln(fmt.Sprintf("[⚡️ WebHook] User %s (%d) received invoice of %d sat.", telegram.GetUserStr(user.Telegram), user.Telegram.ID, webhookEvent.Amount/1000))
+
+    writer.WriteHeader(200)
+
+    txInvoiceEvent := &telegram.InvoiceEvent{Invoice: &telegram.Invoice{PaymentHash: webhookEvent.PaymentHash}}
+    err = w.buntdb.Get(txInvoiceEvent)
+    if err != nil {
+        log.Errorln(err)
+    } else {
+        if c := telegram.InvoiceCallback[txInvoiceEvent.Callback]; c.Function != nil {
+            if err := telegram.AssertEventType(txInvoiceEvent, c.Type); err != nil {
+                log.Errorln(err)
+                return
+            }
+            go c.Function(txInvoiceEvent)
+            return
+        }
+    }
+
+    _, err = w.bot.Send(user.Telegram, fmt.Sprintf(i18n.Translate(user.Telegram.LanguageCode, "invoiceReceivedMessage"), webhookEvent.Amount/1000))
+    if err != nil {
+        log.Errorln(err)
+    }
 }
