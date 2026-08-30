@@ -301,7 +301,6 @@ func UpdateUserRecord(user *lnbits.User, bot TipBot) error {
         return tx.Error
     }
 
-    // 2) UNIQUE-Konflikt → Geisterzeilen weg + bestehenden Datensatz updaten
     log.Warnf("[UpdateUserRecord] UNIQUE conflict for name=%s – trying recovery", user.Name)
     bot.DB.Users.Where("name = '' OR name IS NULL").Delete(&lnbits.User{})
 

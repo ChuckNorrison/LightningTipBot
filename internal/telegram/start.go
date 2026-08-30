@@ -124,7 +124,7 @@ func (bot TipBot) createWallet(user *lnbits.User) error {
         log.Errorln("[createWallet] Create wallet error:", err.Error())
         return err
     } else {
-        // neu angelegt
+        // create wallet success
         user.ID = u.ID
         user.Name = username
 
