@@ -31,7 +31,7 @@ type BotConfiguration struct {
 	LNURLHostUrl   *url.URL            `yaml:"-"`
 	LNURLSendImage bool                `yaml:"lnurl_image"`
 	AdminAPIHost   string              `yaml:"admin_api_host"`
-	LNURLMaxSendableSat int64          `yaml:"lnurl_max_sendable_sat"`
+	AdminAPIToken  string              `yaml:"admin_api_token"`
 }
 
 type TelegramConfiguration struct {
@@ -75,12 +75,20 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+	Configuration.Bot.LNURLHostUrl = hostname
 
-	if Configuration.Bot.LNURLMaxSendableSat <= 0 {
-	    Configuration.Bot.LNURLMaxSendableSat = 250_000
+	host := Configuration.Bot.AdminAPIHost
+	if host == "" {
+		Configuration.Bot.AdminAPIHost = "127.0.0.1:6060"
+	}
+	if strings.HasPrefix(host, "0.0.0.0:") || strings.HasPrefix(host, ":") || strings.HasPrefix(host, "[::]:") {
+		log.Warnf("admin_api_host %q is public; use 127.0.0.1 and admin_api_token", host)
+	}
+	if Configuration.Bot.AdminAPIToken == "" {
+		log.Warnf("admin_api_token unset; admin API on %s is unauthenticated",
+			Configuration.Bot.AdminAPIHost)
 	}
 
-	Configuration.Bot.LNURLHostUrl = hostname
 	checkLnbitsConfiguration()
 }
 

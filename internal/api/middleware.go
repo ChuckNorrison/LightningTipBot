@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -124,4 +125,20 @@ func dump(r *http.Request) string {
 		return ""
 	}
 	return string(x)
+}
+
+func AdminAuthMiddleware(token string, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if token == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		got := r.Header.Get("Authorization")
+		want := "Bearer " + token
+		if subtle.ConstantTimeCompare([]byte(got), []byte(want)) != 1 {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
+	}
 }

@@ -76,13 +76,18 @@ func startApiServer(bot *telegram.TipBot) {
 
 	// start internal admin server
 	adminService := admin.New(bot)
-	internalAdminServer := api.NewServer(internal.Configuration.Bot.AdminAPIHost)
-	internalAdminServer.AppendRoute("/mutex", mutex.ServeHTTP)
-	internalAdminServer.AppendRoute("/mutex/unlock/{id}", mutex.UnlockHTTP)
-	internalAdminServer.AppendRoute("/admin/ban/{id}", adminService.BanUser)
-	internalAdminServer.AppendRoute("/admin/unban/{id}", adminService.UnbanUser)
-	internalAdminServer.PathPrefix("/debug/pprof/", http.DefaultServeMux)
 
+	adminToken := internal.Configuration.Bot.AdminAPIToken
+	auth := func(h http.HandlerFunc) http.HandlerFunc {
+		return api.AdminAuthMiddleware(adminToken, h)
+	}
+
+	internalAdminServer := api.NewServer(internal.Configuration.Bot.AdminAPIHost)
+	internalAdminServer.AppendRoute("/mutex", auth(mutex.ServeHTTP))
+	internalAdminServer.AppendRoute("/mutex/unlock/{id}", auth(mutex.UnlockHTTP))
+	internalAdminServer.AppendRoute("/admin/ban/{id}", auth(adminService.BanUser))
+	internalAdminServer.AppendRoute("/admin/unban/{id}", auth(adminService.UnbanUser))
+	internalAdminServer.PathPrefix("/debug/pprof/", auth(http.DefaultServeMux.ServeHTTP))
 }
 
 func withRecovery() {

@@ -8,9 +8,10 @@ bot:
   http_proxy: ""
   lnurl_public_host_name: "https://myfullnode.com"
   lnurl_server: "http://127.0.0.1:8099"
+  lnurl_max_sendable_sat: 250000
   lnurl_image: true
   admin_api_host: localhost:6060
-  lnurl_max_sendable_sat: 250000
+  admin_api_token: "" # openssl rand -hex 32
 telegram:
   message_dispose_duration: 10
   api_key: "1234567890:ABCDEFGHIJKLMNOPQRSTUVW"
