@@ -162,7 +162,7 @@ func (bot *TipBot) confirmPayHandler(ctx intercept.Context) (intercept.Context, 
 	}
 	payData := sn.(*PayData)
 
-	// onnly the correct user can press
+	// only the correct user can press
 	if payData.From.Telegram.ID != ctx.Sender().ID {
 		return ctx, errors.Create(errors.UnknownError)
 	}
@@ -173,6 +173,12 @@ func (bot *TipBot) confirmPayHandler(ctx intercept.Context) (intercept.Context, 
 		return ctx, errors.Create(errors.NotActiveError)
 	}
 	defer payData.Set(payData, bot.Bunt)
+
+	payData.Active = false
+	if err := payData.Set(payData, bot.Bunt); err != nil {
+		log.Errorf("[confirmPayHandler] could not persist inactive: %v", err)
+		return ctx, err
+	}
 
 	// remove buttons from confirmation message
 	// bot.tryEditMessage(handler.Message(), MarkdownEscape(payData.Message), &tb.ReplyMarkup{})
