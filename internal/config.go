@@ -31,6 +31,7 @@ type BotConfiguration struct {
 	LNURLHostUrl   *url.URL            `yaml:"-"`
 	LNURLSendImage bool                `yaml:"lnurl_image"`
 	AdminAPIHost   string              `yaml:"admin_api_host"`
+	LNURLMaxSendableSat int64          `yaml:"lnurl_max_sendable_sat"`
 }
 
 type TelegramConfiguration struct {
@@ -74,6 +75,11 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+
+	if Configuration.Bot.LNURLMaxSendableSat <= 0 {
+	    Configuration.Bot.LNURLMaxSendableSat = 250_000
+	}
+
 	Configuration.Bot.LNURLHostUrl = hostname
 	checkLnbitsConfiguration()
 }

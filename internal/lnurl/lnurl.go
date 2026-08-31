@@ -9,7 +9,11 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+	"unicode"
+
+	"golang.org/x/time/rate"
 
 	"github.com/eko/gocache/store"
 	tb "gopkg.in/lightningtipbot/telebot.v3"
@@ -28,12 +32,116 @@ import (
 )
 
 const (
-	PayRequestTag  = "payRequest"
-	Endpoint       = ".well-known/lnurlp"
-	MinSendable    = 1000 // mSat
-	MaxSendable    = 1_000_000_000
-	CommentAllowed = 500
+	PayRequestTag            = "payRequest"
+	Endpoint                 = ".well-known/lnurlp"
+	MinSendable              = 1000 // mSat
+	MaxSendable              = 250_000_000
+	CommentAllowed           = 140
+	MaxInvoicesPerUserPerMin = 10
+	MaxInvoicesPerIPPerMin   = 30
 )
+
+type invoiceLimiter struct {
+	mu   sync.Mutex
+	keys map[string]*rate.Limiter
+	r    rate.Limit
+	b    int
+}
+
+func newInvoiceLimiter(perMin int) *invoiceLimiter {
+	return &invoiceLimiter{
+		keys: make(map[string]*rate.Limiter),
+		r:    rate.Limit(float64(perMin) / 60.0),
+		b:    perMin,
+	}
+}
+
+func (l *invoiceLimiter) allow(key string) bool {
+	if key == "" {
+		key = "unknown"
+	}
+	l.mu.Lock()
+	lim, ok := l.keys[key]
+	if !ok {
+		lim = rate.NewLimiter(l.r, l.b)
+		l.keys[key] = lim
+	}
+	l.mu.Unlock()
+	return lim.Allow()
+}
+
+var (
+	lnurlUserLimiter = newInvoiceLimiter(MaxInvoicesPerUserPerMin)
+	lnurlIPLimiter   = newInvoiceLimiter(MaxInvoicesPerIPPerMin)
+)
+
+func sanitizeComment(s string) string {
+	s = strings.TrimSpace(s)
+	if len(s) > CommentAllowed {
+		s = s[:CommentAllowed]
+	}
+	var b strings.Builder
+	for _, r := range s {
+		if unicode.IsControl(r) && r != '\n' && r != '\t' {
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
+func clientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		return strings.TrimSpace(strings.Split(xff, ",")[0])
+	}
+	host, _, _ := strings.Cut(r.RemoteAddr, ":")
+	if host == "" {
+		return r.RemoteAddr
+	}
+	return host
+}
+
+func lnurlError(reason string) *lnurl.LNURLPayValues {
+	return &lnurl.LNURLPayValues{
+		LNURLResponse: lnurl.LNURLResponse{Status: api.StatusError, Reason: reason},
+	}
+}
+
+func userCannotReceiveLNURL(user *lnbits.User) bool {
+	if user == nil {
+		return true
+	}
+	if user.Banned {
+		return true
+	}
+	if user.Wallet == nil {
+		return true
+	}
+	if user.Wallet.Inkey == "" {
+		return true
+	}
+	key := strings.ToLower(strings.TrimSpace(user.Wallet.Adminkey))
+	return strings.HasPrefix(key, "banned")
+}
+
+func invalidUser() (*lnurl.LNURLPayValues, error) {
+	return &lnurl.LNURLPayValues{
+		LNURLResponse: lnurl.LNURLResponse{
+			Status: api.StatusError,
+			Reason: "Invalid user.",
+		},
+	}, fmt.Errorf("invalid or banned user")
+}
+
+const DefaultMaxSendableSat = 250_000
+
+func maxSendableMsat() int64 {
+    sat := internal.Configuration.Bot.LNURLMaxSendableSat
+    if sat <= 0 {
+        sat = DefaultMaxSendableSat
+    }
+    return sat * 1000
+}
 
 type Invoice struct {
 	*telegram.Invoice
@@ -72,65 +180,65 @@ func (lnurlInvoice Invoice) Key() string {
 func (w Lnurl) Handle(writer http.ResponseWriter, request *http.Request) {
 	var err error
 	var response interface{}
+
 	username := mux.Vars(request)["username"]
-	if request.URL.RawQuery == "" {
+	if username == "" || len(username) > 64 {
+		response = lnurlError("Invalid user.")
+		err = fmt.Errorf("invalid username")
+	} else if request.URL.RawQuery == "" {
 		response, err = w.serveLNURLpFirst(username)
+	} else if !lnurlIPLimiter.allow(clientIP(request)) || !lnurlUserLimiter.allow(strings.ToLower(username)) {
+		response = lnurlError("Rate limit exceeded. Try later.")
+		err = fmt.Errorf("rate limited")
 	} else {
 		stringAmount := request.FormValue("amount")
 		if stringAmount == "" {
-			api.NotFoundHandler(writer, fmt.Errorf("[handleLnUrl] Form value 'amount' is not set"))
-			return
-		}
-
-		var amount int64
-		if amount, err = strconv.ParseInt(stringAmount, 10, 64); err != nil {
-			// if the value wasn't a clean msat denomination, parse it
-			amount, err = telegram.GetAmount(stringAmount)
-			if err != nil {
-				api.NotFoundHandler(writer, fmt.Errorf("[handleLnUrl] Couldn't cast amount to int: %v", err))
-				return
+			response = lnurlError("Amount is not set.")
+			err = fmt.Errorf("amount is not set")
+		} else {
+			var amount int64
+			if amount, err = strconv.ParseInt(stringAmount, 10, 64); err != nil {
+				amount, err = telegram.GetAmount(stringAmount)
+				if err != nil {
+					response = lnurlError("Invalid amount.")
+					err = fmt.Errorf("invalid amount")
+				} else {
+					amount *= 1000
+				}
 			}
-			// GetAmount returns sat, we need msat
-			amount *= 1000
-		}
 
-		comment := request.FormValue("comment")
-		if len(comment) > CommentAllowed {
-			api.NotFoundHandler(writer, fmt.Errorf("[handleLnUrl] Comment is too long"))
-			return
-		}
+			if err == nil {
+				comment := sanitizeComment(request.FormValue("comment"))
 
-		// payer data
-		payerdata := request.FormValue("payerdata")
-		var payerData lnurl.PayerDataValues
-		err = json.Unmarshal([]byte(payerdata), &payerData)
-		if err != nil {
-			// api.NotFoundHandler(writer, fmt.Errorf("[handleLnUrl] Couldn't parse payerdata: %v", err))
-			log.Errorf("[handleLnUrl] Couldn't parse payerdata: %v", err)
-			// log.Errorf("[handleLnUrl] payerdata: %v", payerdata)
-		}
+				var payerData lnurl.PayerDataValues
+				if payerdata := request.FormValue("payerdata"); payerdata != "" {
+					if uerr := json.Unmarshal([]byte(payerdata), &payerData); uerr != nil {
+						log.Errorf("[handleLnUrl] Couldn't parse payerdata: %v", uerr)
+					}
+				}
 
-		response, err = w.serveLNURLpSecond(username, int64(amount), comment, payerData)
+				response, err = w.serveLNURLpSecond(username, amount, comment, payerData)
+			}
+		}
 	}
-	// check if error was returned from first or second handlers
+
 	if err != nil {
-		// log the error
 		log.Errorf("[LNURL] %v", err.Error())
 		if response != nil {
-			// there is a valid error response
-			err = api.WriteResponse(writer, response)
-			if err != nil {
-				api.NotFoundHandler(writer, err)
+			if werr := api.WriteResponse(writer, response); werr != nil {
+				api.NotFoundHandler(writer, werr)
 			}
+			return
 		}
+		api.NotFoundHandler(writer, err)
 		return
 	}
-	// no error from first or second handler
-	err = api.WriteResponse(writer, response)
-	if err != nil {
-		api.NotFoundHandler(writer, err)
+
+	if werr := api.WriteResponse(writer, response); werr != nil {
+		api.NotFoundHandler(writer, werr)
 	}
 }
+
 func (w Lnurl) getMetaDataCached(username string) lnurl.Metadata {
 	key := fmt.Sprintf("lnurl_metadata_%s", username)
 
@@ -158,11 +266,16 @@ func (w Lnurl) getMetaDataCached(username string) lnurl.Metadata {
 
 // serveLNURLpFirst serves the first part of the LNURLp protocol with the endpoint
 // to call and the metadata that matches the description hash of the second response
-func (w Lnurl) serveLNURLpFirst(username string) (*lnurl.LNURLPayParams, error) {
+func (w Lnurl) serveLNURLpFirst(username string) (interface{}, error) {
+	user, tx := findUser(w.database, username)
+	if tx.Error != nil || userCannotReceiveLNURL(user) {
+		return lnurlError("Invalid user."), fmt.Errorf("invalid or banned user")
+	}
+
 	log.Infof("[LNURL] Serving endpoint for user %s", username)
 	callbackURL, err := url.Parse(fmt.Sprintf("%s/%s/%s", w.callbackHostname.String(), Endpoint, username))
 	if err != nil {
-		return nil, err
+		return lnurlError("Invalid user."), err
 	}
 
 	// produce the metadata including the image
@@ -173,7 +286,7 @@ func (w Lnurl) serveLNURLpFirst(username string) (*lnurl.LNURLPayParams, error) 
 		Tag:             PayRequestTag,
 		Callback:        callbackURL.String(),
 		MinSendable:     MinSendable,
-		MaxSendable:     MaxSendable,
+		MaxSendable:     maxSendableMsat(),
 		EncodedMetadata: metadata.Encode(),
 		CommentAllowed:  CommentAllowed,
 		PayerData: &lnurl.PayerDataSpec{
@@ -187,59 +300,53 @@ func (w Lnurl) serveLNURLpFirst(username string) (*lnurl.LNURLPayParams, error) 
 // serveLNURLpSecond serves the second LNURL response with the payment request with the correct description hash
 func (w Lnurl) serveLNURLpSecond(username string, amount_msat int64, comment string, payerData lnurl.PayerDataValues) (*lnurl.LNURLPayValues, error) {
 	log.Infof("[LNURL] Serving invoice for user %s", username)
-	if amount_msat < MinSendable || amount_msat > MaxSendable {
-		// amount is not ok
+
+	maxMsat := maxSendableMsat()
+	if amount_msat < MinSendable || amount_msat > maxMsat {
 		return &lnurl.LNURLPayValues{
 			LNURLResponse: lnurl.LNURLResponse{
 				Status: api.StatusError,
-				Reason: fmt.Sprintf("Amount out of bounds (min: %d sat, max: %d sat).", MinSendable/1000, MaxSendable/1000)},
+				Reason: fmt.Sprintf("Amount out of bounds (min: %d sat, max: %d sat).",
+					MinSendable/1000, maxMsat/1000),
+			},
 		}, fmt.Errorf("amount out of bounds")
 	}
+
 	// check comment length
+	comment = sanitizeComment(comment)
 	if len(comment) > CommentAllowed {
 		return &lnurl.LNURLPayValues{
 			LNURLResponse: lnurl.LNURLResponse{
 				Status: api.StatusError,
-				Reason: fmt.Sprintf("Comment too long (max: %d characters).", CommentAllowed)},
+				Reason: fmt.Sprintf("Comment too long (max: %d characters).", CommentAllowed),
+			},
 		}, fmt.Errorf("comment too long")
 	}
+
 	user, tx := findUser(w.database, username)
-	if tx.Error != nil {
-		return &lnurl.LNURLPayValues{
-			LNURLResponse: lnurl.LNURLResponse{
-				Status: api.StatusError,
-				Reason: fmt.Sprintf("Invalid user.")},
-		}, fmt.Errorf("[GetUser] Couldn't fetch user info from database: %v", tx.Error)
+	if tx.Error != nil || userCannotReceiveLNURL(user) {
+		log.Infof("[LNURL] reject invoice mint for %s (missing/banned)", username)
+		return invalidUser()
 	}
-	if user.Wallet == nil {
-		return &lnurl.LNURLPayValues{
-			LNURLResponse: lnurl.LNURLResponse{
-				Status: api.StatusError,
-				Reason: fmt.Sprintf("Invalid user.")},
-		}, fmt.Errorf("[serveLNURLpSecond] user %s not found", username)
-	}
+
 	// user is ok now create invoice
 	// set wallet lnbits client
-
-	var resp *lnurl.LNURLPayValues
 
 	// the same description_hash needs to be built in the second request
 	metadata := w.getMetaDataCached(username)
 
 	var payerDataByte []byte
-	var err error
 	if payerData.Email != "" || payerData.LightningAddress != "" || payerData.FreeName != "" {
-		payerDataByte, err = json.Marshal(payerData)
+		b, err := json.Marshal(payerData)
 		if err != nil {
-			return nil, err
+			return lnurlError("Couldn't create invoice."), fmt.Errorf("[serveLNURLpSecond] payerdata: %w", err)
 		}
-	} else {
-		payerDataByte = []byte("")
+		payerDataByte = b
 	}
 
 	descriptionHash, err := w.DescriptionHash(metadata, string(payerDataByte))
 	if err != nil {
-		return nil, err
+		return lnurlError("Couldn't create invoice."), fmt.Errorf("[serveLNURLpSecond] description hash: %w", err)
 	}
 
 	invoice, err := user.Wallet.Invoice(
@@ -247,16 +354,12 @@ func (w Lnurl) serveLNURLpSecond(username string, amount_msat int64, comment str
 			Amount:          amount_msat / 1000,
 			Out:             false,
 			DescriptionHash: descriptionHash,
-			Webhook:         w.WebhookServer},
-		w.c)
+			Webhook:         w.WebhookServer,
+		},
+		w.c,
+	)
 	if err != nil {
-		err = fmt.Errorf("[serveLNURLpSecond] Couldn't create invoice: %v", err.Error())
-		resp = &lnurl.LNURLPayValues{
-			LNURLResponse: lnurl.LNURLResponse{
-				Status: api.StatusError,
-				Reason: "Couldn't create invoice."},
-		}
-		return resp, err
+		return lnurlError("Couldn't create invoice."), fmt.Errorf("[serveLNURLpSecond] Couldn't create invoice: %w", err)
 	}
 	invoiceStruct := &telegram.Invoice{
 		PaymentRequest: invoice.PaymentRequest,
