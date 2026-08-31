@@ -30,6 +30,7 @@ type BotConfiguration struct {
 	LNURLHostName  string              `yaml:"lnurl_public_host_name"`
 	LNURLHostUrl   *url.URL            `yaml:"-"`
 	LNURLSendImage bool                `yaml:"lnurl_image"`
+	LNURLMaxSendableSat int64          `yaml:"lnurl_max_sendable_sat"`
 	AdminAPIHost   string              `yaml:"admin_api_host"`
 	AdminAPIToken  string              `yaml:"admin_api_token"`
 }
@@ -75,6 +76,11 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+
+	if Configuration.Bot.LNURLMaxSendableSat <= 0 {
+		Configuration.Bot.LNURLMaxSendableSat = 250_000
+	}
+
 	Configuration.Bot.LNURLHostUrl = hostname
 
 	host := Configuration.Bot.AdminAPIHost
